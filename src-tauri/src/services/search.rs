@@ -1,6 +1,5 @@
 use crate::models::{SearchResult, Snippet, SnippetId};
-use crate::services::database::get_pool;
-use crate::services::tags;
+use crate::services::{database::get_pool, settings::SettingsService, tags};
 use crate::utils::error::AppError;
 use sqlx::Row;
 use tauri::AppHandle;
@@ -20,11 +19,6 @@ const RECENCY_OLD_DAYS: f64 = 90.0;
 const RECENCY_RECENT_BONUS: f64 = 2.0;
 const RECENCY_MEDIUM_BONUS: f64 = 1.0;
 const RECENCY_OLD_BONUS: f64 = 0.5;
-
-/// Scoring weights for relevance calculation
-const WEIGHT_TEXT_RELEVANCE: f64 = 10.0;
-const WEIGHT_USAGE_FREQUENCY: f64 = 2.0;
-const WEIGHT_RECENCY: f64 = 1.0;
 
 /// Search snippets using FTS5 full-text search with relevance scoring
 ///
@@ -47,6 +41,11 @@ pub async fn search_snippets(
     limit: Option<i64>,
 ) -> Result<Vec<SearchResult>, AppError> {
     let pool = get_pool(app)?;
+
+    // Load search settings to get configurable weights
+    let settings_service = SettingsService::new(pool.clone());
+    let settings = settings_service.get_settings().await?;
+    let search_settings = &settings.search_settings;
 
     // Validate and apply limit
     let limit = limit
@@ -119,7 +118,15 @@ pub async fn search_snippets(
         };
 
         // Calculate relevance score combining FTS rank and usage statistics
-        let relevance_score = calculate_relevance_score(fts_rank, usage_count, last_used);
+        // Use configurable weights from settings
+        let relevance_score = calculate_relevance_score(
+            fts_rank,
+            usage_count,
+            last_used,
+            search_settings.weight_text_relevance,
+            search_settings.weight_usage_frequency,
+            search_settings.weight_recency,
+        );
 
         search_results.push(SearchResult {
             snippet,
@@ -142,27 +149,29 @@ pub async fn search_snippets(
 /// Build FTS5 query from user input
 ///
 /// This function prepares the user's search query for FTS5.
-/// Currently implements simple matching, but can be extended for:
-/// - Phrase queries: "exact phrase"
-/// - AND/OR operators
-/// - Column-specific searches: name:searchterm
-/// - Prefix matching: term*
+/// Features:
+/// - Prefix matching: "taur" matches "tauri"
+/// - Multi-token OR search: "react hooks" matches snippets containing either term
+/// - Special character escaping for safety
 fn build_fts5_query(query: &str) -> String {
-    // For MVP, use simple token matching
-    // FTS5 tokenizes the query automatically
-    // We escape special FTS5 characters to prevent syntax errors
+    // Escape special FTS5 characters to prevent syntax errors
+    // Remove: " (phrases), * (wildcards we'll add ourselves), ( ) (grouping)
     let escaped = query.replace(['"', '*', '(', ')'], "");
 
-    // Split into tokens and join with OR for broader matching
+    // Split into tokens
     let tokens: Vec<&str> = escaped.split_whitespace().collect();
 
     if tokens.is_empty() {
         return String::new();
     }
 
-    // Join tokens with OR operator for more forgiving search
+    // Add prefix matching wildcard to each token for partial matching
+    // This enables "taur" to match "tauri"
+    let prefix_tokens: Vec<String> = tokens.iter().map(|t| format!("{}*", t)).collect();
+
+    // Join tokens with OR operator for broader matching
     // This allows matching any of the search terms
-    tokens.join(" OR ")
+    prefix_tokens.join(" OR ")
 }
 
 /// Calculate relevance score combining FTS rank with usage statistics
@@ -177,11 +186,21 @@ fn build_fts5_query(query: &str) -> String {
 /// * `fts_rank` - FTS5 BM25 rank (negative number, closer to 0 is better)
 /// * `usage_count` - Number of times snippet has been used
 /// * `last_used` - Timestamp of last usage (None if never used)
+/// * `weight_text` - Weight multiplier for text relevance (default: 10.0)
+/// * `weight_usage` - Weight multiplier for usage frequency (default: 2.0)
+/// * `weight_recency` - Weight multiplier for recency (default: 1.0)
 ///
 /// # Returns
 ///
 /// A positive score where higher is better
-fn calculate_relevance_score(fts_rank: f64, usage_count: i64, last_used: Option<i64>) -> f64 {
+fn calculate_relevance_score(
+    fts_rank: f64,
+    usage_count: i64,
+    last_used: Option<i64>,
+    weight_text: f64,
+    weight_usage: f64,
+    weight_recency: f64,
+) -> f64 {
     // FTS5 rank is negative, normalize to positive (closer to 0 = better match)
     // Convert to positive score where higher is better
     let text_score = -fts_rank;
@@ -214,13 +233,9 @@ fn calculate_relevance_score(fts_rank: f64, usage_count: i64, last_used: Option<
         None => 0.0,
     };
 
-    // Weighted combination of scores
-    // Text relevance is most important
-    // Usage frequency adds moderate boost
-    // Recency adds small boost
-    (text_score * WEIGHT_TEXT_RELEVANCE)
-        + (usage_score * WEIGHT_USAGE_FREQUENCY)
-        + (recency_score * WEIGHT_RECENCY)
+    // Weighted combination of scores using configurable weights
+    // This allows users to tune ranking behavior based on their preferences
+    (text_score * weight_text) + (usage_score * weight_usage) + (recency_score * weight_recency)
 }
 
 #[cfg(test)]
@@ -229,42 +244,95 @@ mod tests {
 
     #[test]
     fn test_build_fts5_query() {
-        // Test simple query
-        assert_eq!(build_fts5_query("react"), "react");
+        // Test simple query with prefix matching
+        assert_eq!(build_fts5_query("react"), "react*");
 
-        // Test multiple words
-        assert_eq!(build_fts5_query("react hooks"), "react OR hooks");
+        // Test multiple words with prefix matching on each
+        assert_eq!(build_fts5_query("react hooks"), "react* OR hooks*");
 
-        // Test with special characters (should be escaped)
-        assert_eq!(build_fts5_query("test*query"), "testquery");
+        // Test with special characters (should be escaped, then * added)
+        assert_eq!(build_fts5_query("test*query"), "testquery*");
 
         // Test empty query
         assert_eq!(build_fts5_query(""), "");
 
         // Test whitespace only
         assert_eq!(build_fts5_query("   "), "");
+
+        // Test partial word matching
+        assert_eq!(build_fts5_query("taur"), "taur*");
     }
 
     #[test]
     fn test_calculate_relevance_score() {
+        // Default weights for testing
+        let weight_text = 10.0;
+        let weight_usage = 2.0;
+        let weight_recency = 1.0;
+
         // Test text relevance only (unused snippet)
-        let score = calculate_relevance_score(-1.0, 0, None);
+        let score =
+            calculate_relevance_score(-1.0, 0, None, weight_text, weight_usage, weight_recency);
         assert_eq!(score, 10.0); // text_score * 10
 
         // Test with usage count
-        let score = calculate_relevance_score(-1.0, 10, None);
+        let score =
+            calculate_relevance_score(-1.0, 10, None, weight_text, weight_usage, weight_recency);
         assert!(score > 10.0); // Should be higher due to usage
 
         // Test with recent usage (within 7 days)
         let now = crate::utils::time::current_timestamp();
         let recent = now - (3 * 24 * 3600); // 3 days ago
-        let score = calculate_relevance_score(-1.0, 0, Some(recent));
+        let score = calculate_relevance_score(
+            -1.0,
+            0,
+            Some(recent),
+            weight_text,
+            weight_usage,
+            weight_recency,
+        );
         assert_eq!(score, 12.0); // 10 (text) + 0 (no usage) + 2 (recent)
 
         // Test with older usage (within 30 days)
         let older = now - (20 * 24 * 3600); // 20 days ago
-        let score = calculate_relevance_score(-1.0, 0, Some(older));
+        let score = calculate_relevance_score(
+            -1.0,
+            0,
+            Some(older),
+            weight_text,
+            weight_usage,
+            weight_recency,
+        );
         assert_eq!(score, 11.0); // 10 (text) + 0 (no usage) + 1 (medium recency)
+    }
+
+    #[test]
+    fn test_calculate_relevance_score_custom_weights() {
+        // Test with custom weights that prioritize usage over text relevance
+        let weight_text = 1.0;
+        let weight_usage = 10.0;
+        let weight_recency = 0.5;
+
+        // Snippet with high usage should score higher
+        let score_high_usage =
+            calculate_relevance_score(-1.0, 100, None, weight_text, weight_usage, weight_recency);
+        let score_low_usage =
+            calculate_relevance_score(-1.0, 1, None, weight_text, weight_usage, weight_recency);
+        assert!(score_high_usage > score_low_usage);
+
+        // Test that weights actually affect the score
+        let now = crate::utils::time::current_timestamp();
+        let recent = now - (3 * 24 * 3600);
+        let score_with_recency = calculate_relevance_score(
+            -1.0,
+            0,
+            Some(recent),
+            weight_text,
+            weight_usage,
+            weight_recency,
+        );
+        // Should be text (1.0) + recency bonus (2.0 * 0.5) = 2.0
+        assert_eq!(score_with_recency, 2.0);
     }
 
     #[test]

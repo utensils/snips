@@ -5,6 +5,7 @@
 use tauri::AppHandle;
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut, ShortcutState};
 
+use crate::models::settings::GlobalShortcuts;
 use crate::services::window;
 
 /// The default keyboard shortcut for opening the search overlay.
@@ -83,6 +84,113 @@ pub fn register_all_shortcuts(app: &AppHandle) -> Result<(), ShortcutError> {
             // Don't return error, continue with app startup
         }
     }
+
+    Ok(())
+}
+
+/// Registers shortcuts from settings configuration.
+///
+/// This function unregisters all existing shortcuts and registers new ones
+/// based on the provided settings. It should be called when settings are updated.
+///
+/// # Arguments
+///
+/// * `app` - The Tauri application handle
+/// * `shortcuts` - The shortcut configuration from settings
+///
+/// # Returns
+///
+/// Returns `Ok(())` if all shortcuts were registered successfully.
+///
+/// # Errors
+///
+/// Returns `ShortcutError` if any registration fails.
+pub fn register_shortcuts_from_settings(
+    app: &AppHandle,
+    shortcuts: &GlobalShortcuts,
+) -> Result<(), ShortcutError> {
+    // Unregister all existing shortcuts first
+    unregister_all_shortcuts(app)?;
+
+    // Register search shortcut with custom key combination
+    register_search_shortcut_with_key(app, &shortcuts.search_select)?;
+
+    // Register quick add shortcut with custom key combination
+    register_quick_add_shortcut_with_key(app, &shortcuts.quick_add)?;
+
+    Ok(())
+}
+
+/// Registers the search overlay shortcut with a custom key combination.
+///
+/// # Arguments
+///
+/// * `app` - The Tauri application handle
+/// * `shortcut_str` - The shortcut string (e.g., "Cmd+Shift+S")
+///
+/// # Returns
+///
+/// Returns `Ok(())` if the shortcut was registered successfully.
+///
+/// # Errors
+///
+/// Returns `ShortcutError` if registration fails.
+pub fn register_search_shortcut_with_key(
+    app: &AppHandle,
+    shortcut_str: &str,
+) -> Result<(), ShortcutError> {
+    let shortcut = shortcut_str
+        .parse::<Shortcut>()
+        .map_err(|e| ShortcutError::InvalidFormat(format!("{}: {}", shortcut_str, e)))?;
+
+    let app_handle = app.clone();
+
+    app.global_shortcut()
+        .on_shortcut(shortcut, move |_app, _shortcut, event| {
+            if event.state == ShortcutState::Pressed {
+                if let Err(e) = window::toggle_search_window(&app_handle) {
+                    eprintln!("Failed to toggle search window from shortcut: {}", e);
+                }
+            }
+        })
+        .map_err(|e| ShortcutError::RegistrationFailed(shortcut_str.to_string(), e.to_string()))?;
+
+    Ok(())
+}
+
+/// Registers the quick add dialog shortcut with a custom key combination.
+///
+/// # Arguments
+///
+/// * `app` - The Tauri application handle
+/// * `shortcut_str` - The shortcut string (e.g., "Cmd+Shift+A")
+///
+/// # Returns
+///
+/// Returns `Ok(())` if the shortcut was registered successfully.
+///
+/// # Errors
+///
+/// Returns `ShortcutError` if registration fails.
+pub fn register_quick_add_shortcut_with_key(
+    app: &AppHandle,
+    shortcut_str: &str,
+) -> Result<(), ShortcutError> {
+    let shortcut = shortcut_str
+        .parse::<Shortcut>()
+        .map_err(|e| ShortcutError::InvalidFormat(format!("{}: {}", shortcut_str, e)))?;
+
+    let app_handle = app.clone();
+
+    app.global_shortcut()
+        .on_shortcut(shortcut, move |_app, _shortcut, event| {
+            if event.state == ShortcutState::Pressed {
+                if let Err(e) = window::show_quick_add_window(&app_handle) {
+                    eprintln!("Failed to show quick add window from shortcut: {}", e);
+                }
+            }
+        })
+        .map_err(|e| ShortcutError::RegistrationFailed(shortcut_str.to_string(), e.to_string()))?;
 
     Ok(())
 }

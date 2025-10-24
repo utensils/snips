@@ -154,7 +154,7 @@ pub fn is_shortcut_valid(shortcut: String) -> bool {
 /// Re-registers all default shortcuts.
 ///
 /// This is useful if shortcuts were unregistered or if there was a conflict
-/// that has been resolved.
+/// that has been resolved. It reads the shortcuts from settings and registers them.
 ///
 /// # Arguments
 ///
@@ -170,8 +170,24 @@ pub fn is_shortcut_valid(shortcut: String) -> bool {
 /// await invoke('reregister_default_shortcuts');
 /// ```
 #[tauri::command]
-pub fn reregister_default_shortcuts(app: AppHandle) -> Result<(), String> {
-    shortcuts::register_all_shortcuts(&app).map_err(|e| e.to_string())
+pub async fn reregister_default_shortcuts(app: AppHandle) -> Result<(), String> {
+    use crate::services::database::DbPool;
+    use crate::services::settings::SettingsService;
+    use tauri::Manager;
+
+    // Get database pool from app state
+    let db_pool = app.state::<DbPool>();
+    let settings_service = SettingsService::new(db_pool.0.clone());
+
+    // Load current settings
+    let settings = settings_service
+        .get_settings()
+        .await
+        .map_err(|e| format!("Failed to load settings: {}", e))?;
+
+    // Register shortcuts from settings
+    shortcuts::register_shortcuts_from_settings(&app, &settings.global_shortcuts)
+        .map_err(|e| e.to_string())
 }
 
 #[cfg(test)]

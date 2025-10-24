@@ -1,4 +1,4 @@
-use tauri::{AppHandle, Manager, PhysicalPosition, PhysicalSize, WebviewWindow};
+use tauri::{AppHandle, Emitter, Manager, PhysicalPosition, PhysicalSize, WebviewWindow};
 
 use crate::utils::error::AppError;
 
@@ -6,6 +6,7 @@ use crate::utils::error::AppError;
 pub const SEARCH_WINDOW_LABEL: &str = "search";
 pub const MANAGEMENT_WINDOW_LABEL: &str = "management";
 pub const QUICK_ADD_WINDOW_LABEL: &str = "quick-add";
+pub const SETTINGS_WINDOW_LABEL: &str = "settings";
 
 /// Gets the search window handle
 pub fn get_search_window(app: &AppHandle) -> Result<WebviewWindow, AppError> {
@@ -51,12 +52,37 @@ pub fn get_or_create_quick_add_window(app: &AppHandle) -> Result<WebviewWindow, 
         tauri::WebviewUrl::App("index.html".into()),
     )
     .title("Quick Add Snippet")
-    .inner_size(500.0, 400.0)
+    .inner_size(650.0, 700.0)
     .center()
     .resizable(false)
     .visible(false)
     .always_on_top(true)
     .skip_taskbar(true)
+    .decorations(true)
+    .build()
+    .map_err(|e| AppError::TauriError(e.to_string()))?;
+
+    Ok(window)
+}
+
+/// Gets the settings window handle, creating it if it doesn't exist
+pub fn get_or_create_settings_window(app: &AppHandle) -> Result<WebviewWindow, AppError> {
+    if let Some(window) = app.get_webview_window(SETTINGS_WINDOW_LABEL) {
+        return Ok(window);
+    }
+
+    // Create settings window
+    let window = tauri::WebviewWindowBuilder::new(
+        app,
+        SETTINGS_WINDOW_LABEL,
+        tauri::WebviewUrl::App("index.html".into()),
+    )
+    .title("Snips - Settings")
+    .inner_size(1000.0, 700.0)
+    .center()
+    .resizable(true)
+    .visible(false)
+    .skip_taskbar(false)
     .decorations(true)
     .build()
     .map_err(|e| AppError::TauriError(e.to_string()))?;
@@ -152,11 +178,141 @@ pub fn show_management_window(app: &AppHandle) -> Result<(), AppError> {
     Ok(())
 }
 
-/// Shows the quick add window
+/// Shows the settings window
+pub fn show_settings_window(app: &AppHandle) -> Result<(), AppError> {
+    let window = get_or_create_settings_window(app)?;
+    show_window(&window)?;
+    Ok(())
+}
+
+/// Shows the quick add window with pre-captured selected text
 pub fn show_quick_add_window(app: &AppHandle) -> Result<(), AppError> {
+    // IMPORTANT: Capture selected text BEFORE showing window to avoid losing focus
+    let selected_text = capture_selected_text_sync();
+
     let window = get_or_create_quick_add_window(app)?;
+
     center_window(&window)?;
     show_window(&window)?;
+
+    // Emit event AFTER showing window to ensure frontend listener is ready
+    // Use a delay to allow the webview to initialize and frontend to mount
+    if let Ok(text) = selected_text {
+        let app_clone = app.clone();
+        std::thread::spawn(move || {
+            // Longer delay to ensure webview is fully initialized
+            std::thread::sleep(std::time::Duration::from_millis(200));
+            // Use emit_to to target the specific window
+            if let Err(e) =
+                app_clone.emit_to(QUICK_ADD_WINDOW_LABEL, "selected-text-captured", text)
+            {
+                eprintln!("Failed to emit selected-text-captured event: {}", e);
+            }
+        });
+    } else if let Err(e) = selected_text {
+        // If text capture failed, emit an error event
+        let app_clone = app.clone();
+        let error_msg = e.to_string();
+        std::thread::spawn(move || {
+            std::thread::sleep(std::time::Duration::from_millis(200));
+            // Use emit_to to target the specific window
+            if let Err(e) =
+                app_clone.emit_to(QUICK_ADD_WINDOW_LABEL, "selected-text-error", error_msg)
+            {
+                eprintln!("Failed to emit selected-text-error event: {}", e);
+            }
+        });
+    }
+
+    Ok(())
+}
+
+/// Synchronously captures selected text using clipboard method
+/// This must be called BEFORE the window takes focus
+fn capture_selected_text_sync() -> Result<String, AppError> {
+    #[cfg(target_os = "macos")]
+    {
+        use std::process::Command;
+
+        // Store current clipboard
+        let original = get_clipboard_sync().unwrap_or_default();
+
+        // Simulate Cmd+C to copy selected text
+        let script = r#"
+            tell application "System Events"
+                keystroke "c" using {command down}
+            end tell
+        "#;
+
+        let output = Command::new("osascript")
+            .arg("-e")
+            .arg(script)
+            .output()
+            .map_err(|e| AppError::External(format!("Failed to execute AppleScript: {}", e)))?;
+
+        if !output.status.success() {
+            return Err(AppError::External(
+                "Failed to capture selected text".to_string(),
+            ));
+        }
+
+        // Small delay for clipboard update
+        std::thread::sleep(std::time::Duration::from_millis(150));
+
+        // Read clipboard
+        let selected = get_clipboard_sync()?;
+
+        // Restore original clipboard if different
+        if !original.is_empty() && original != selected {
+            let _ = set_clipboard_sync(&original);
+        }
+
+        if selected.trim().is_empty() {
+            return Err(AppError::NotFound("No text selected".to_string()));
+        }
+
+        Ok(selected)
+    }
+
+    #[cfg(not(target_os = "macos"))]
+    {
+        Err(AppError::Unsupported(
+            "Text capture only supported on macOS".to_string(),
+        ))
+    }
+}
+
+#[cfg(target_os = "macos")]
+fn get_clipboard_sync() -> Result<String, AppError> {
+    use std::process::Command;
+
+    let output = Command::new("pbpaste")
+        .output()
+        .map_err(|e| AppError::External(format!("Failed to read clipboard: {}", e)))?;
+
+    Ok(String::from_utf8_lossy(&output.stdout).to_string())
+}
+
+#[cfg(target_os = "macos")]
+fn set_clipboard_sync(text: &str) -> Result<(), AppError> {
+    use std::io::Write;
+    use std::process::{Command, Stdio};
+
+    let mut child = Command::new("pbcopy")
+        .stdin(Stdio::piped())
+        .spawn()
+        .map_err(|e| AppError::External(format!("Failed to write clipboard: {}", e)))?;
+
+    if let Some(mut stdin) = child.stdin.take() {
+        stdin
+            .write_all(text.as_bytes())
+            .map_err(|e| AppError::External(format!("Failed to write clipboard: {}", e)))?;
+    }
+
+    child
+        .wait()
+        .map_err(|e| AppError::External(format!("Failed to write clipboard: {}", e)))?;
+
     Ok(())
 }
 
@@ -169,5 +325,6 @@ mod tests {
         assert_eq!(SEARCH_WINDOW_LABEL, "search");
         assert_eq!(MANAGEMENT_WINDOW_LABEL, "management");
         assert_eq!(QUICK_ADD_WINDOW_LABEL, "quick-add");
+        assert_eq!(SETTINGS_WINDOW_LABEL, "settings");
     }
 }

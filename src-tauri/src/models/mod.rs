@@ -1,4 +1,5 @@
 pub mod analytics;
+pub mod settings;
 pub mod snippet;
 pub mod tag;
 
@@ -8,6 +9,12 @@ pub mod tag;
 pub use analytics::{
     AnalyticsId, AnalyticsRecord, GlobalAnalytics, MostUsedSnippet, RecentActivity,
     SnippetAnalytics,
+};
+#[allow(unused_imports)]
+pub use settings::{
+    AppSettings, AuthToken, CloudAccountInfo, CloudSyncResult, CloudSyncSettings, CloudSyncStatus,
+    ConflictInfo, ConflictResolutionStrategy, GitStatus, GitSyncResult, GlobalShortcuts,
+    PrivacySettings, SearchSettings, StorageType, SyncStatus, Theme,
 };
 #[allow(unused_imports)]
 pub use snippet::{CreateSnippetInput, SearchResult, Snippet, SnippetId, UpdateSnippetInput};

@@ -1,16 +1,15 @@
 # Run lint-staged for frontend
 npx lint-staged
 
-# Check Rust formatting
-cd src-tauri
-cargo fmt -- --check
+# Check Rust formatting using mise
+mise exec -- cargo fmt --manifest-path=src-tauri/Cargo.toml -- --check
 if [ $? -ne 0 ]; then
-  echo "Rust formatting check failed. Run 'cargo fmt' to fix."
+  echo "Rust formatting check failed. Run 'mise exec -- cargo fmt --manifest-path=src-tauri/Cargo.toml' to fix."
   exit 1
 fi
 
-# Run Clippy
-cargo clippy -- -D warnings
+# Run Clippy using mise
+mise exec -- cargo clippy --manifest-path=src-tauri/Cargo.toml -- -D warnings
 if [ $? -ne 0 ]; then
   echo "Clippy check failed. Fix the warnings before committing."
   exit 1

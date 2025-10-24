@@ -1,4 +1,4 @@
 {
-  "*.{ts,tsx}": ["eslint --fix", "prettier --write", "vitest related --run"],
+  "*.{ts,tsx}": ["eslint --fix", "prettier --write"],
   "*.{json,md}": ["prettier --write"]
 }

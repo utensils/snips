@@ -1,10 +1,11 @@
+import { type UnlistenFn } from '@tauri-apps/api/event';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { type FormEvent, type ReactElement, useCallback, useEffect, useState } from 'react';
 
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Textarea } from '@/components/ui/Textarea';
-import { createSnippet, getAllSnippets, getSelectedText } from '@/lib/api';
+import { createSnippet, getAllSnippets } from '@/lib/api';
 
 interface QuickAddDialogProps {
   onSuccess?: () => void;
@@ -27,22 +28,65 @@ export function QuickAddDialog({ onSuccess, onError }: QuickAddDialogProps): Rea
   const [existingTags, setExistingTags] = useState<string[]>([]);
   const [showTagSuggestions, setShowTagSuggestions] = useState<boolean>(false);
 
-  // Fetch selected text when component mounts
+  // Listen for selected text event from backend
   useEffect(() => {
-    const fetchSelectedText = async (): Promise<void> => {
+    let unlistenText: UnlistenFn | undefined;
+    let unlistenError: UnlistenFn | undefined;
+    let mounted = true;
+
+    const setupListener = async (): Promise<void> => {
       try {
-        const text = await getSelectedText();
-        setSelectedText(text);
-        setIsLoading(false);
+        const window = getCurrentWindow();
+
+        // Debug: Log window label to verify we're in the right window
+        console.warn('QuickAddDialog window label:', window.label);
+
+        // Small delay to ensure Tauri IPC is ready
+        await new Promise((resolve) => setTimeout(resolve, 50));
+
+        if (!mounted) return;
+
+        // Use window-specific listen API for events sent via emit_to
+        // Window-specific events are NOT triggered to global listeners
+        unlistenText = await window.listen<string>('selected-text-captured', (event) => {
+          console.warn('Received selected-text-captured event:', event.payload.substring(0, 50));
+          if (mounted) {
+            setSelectedText(event.payload);
+            setIsLoading(false);
+          }
+        });
+
+        if (!mounted) return;
+
+        // Listen for errors from the backend
+        unlistenError = await window.listen<string>('selected-text-error', (event) => {
+          console.error('Received selected-text-error event:', event.payload);
+          if (mounted) {
+            setError(event.payload);
+            setIsLoading(false);
+            onError?.(event.payload);
+          }
+        });
+
+        console.warn('Listeners set up successfully, waiting for events...');
       } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : 'Failed to capture selected text';
-        setError(errorMessage);
-        setIsLoading(false);
-        onError?.(errorMessage);
+        console.error('Failed to setup listener:', err);
+        if (mounted) {
+          const errorMessage = err instanceof Error ? err.message : 'Failed to setup listener';
+          setError(errorMessage);
+          setIsLoading(false);
+          onError?.(errorMessage);
+        }
       }
     };
 
-    fetchSelectedText();
+    setupListener();
+
+    return () => {
+      mounted = false;
+      unlistenText?.();
+      unlistenError?.();
+    };
   }, [onError]);
 
   // Fetch existing tags for autocomplete
@@ -166,10 +210,12 @@ export function QuickAddDialog({ onSuccess, onError }: QuickAddDialogProps): Rea
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen p-6 bg-gray-50">
+      <div className="flex items-center justify-center min-h-screen p-6 bg-gray-50 dark:bg-gray-900">
         <div className="text-center">
           <div className="inline-block w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
-          <p className="mt-4 text-sm text-gray-600">Capturing selected text...</p>
+          <p className="mt-4 text-sm text-gray-600 dark:text-gray-400">
+            Capturing selected text...
+          </p>
         </div>
       </div>
     );
@@ -177,10 +223,10 @@ export function QuickAddDialog({ onSuccess, onError }: QuickAddDialogProps): Rea
 
   if (error && !selectedText) {
     return (
-      <div className="flex items-center justify-center min-h-screen p-6 bg-gray-50">
-        <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-6">
-          <h2 className="text-lg font-semibold text-red-600 mb-2">Error</h2>
-          <p className="text-sm text-gray-700 mb-4">{error}</p>
+      <div className="flex items-center justify-center min-h-screen p-6 bg-gray-50 dark:bg-gray-900">
+        <div className="max-w-md w-full bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
+          <h2 className="text-lg font-semibold text-red-600 dark:text-red-400 mb-2">Error</h2>
+          <p className="text-sm text-gray-700 dark:text-gray-300 mb-4">{error}</p>
           <Button onClick={handleCancel} variant="secondary" fullWidth>
             Close
           </Button>
@@ -190,15 +236,19 @@ export function QuickAddDialog({ onSuccess, onError }: QuickAddDialogProps): Rea
   }
 
   return (
-    <div className="min-h-screen p-6 bg-gray-50">
-      <div className="max-w-2xl mx-auto bg-white rounded-lg shadow-lg p-6">
-        <h1 className="text-2xl font-bold text-gray-900 mb-6">Quick Add Snippet</h1>
+    <div className="min-h-screen p-6 bg-gray-50 dark:bg-gray-900 animate-fade-in">
+      <div className="max-w-2xl mx-auto bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 animate-fade-in-scale">
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-6">
+          Quick Add Snippet
+        </h1>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Selected text preview (read-only) */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Selected Text</label>
-            <div className="px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-sm text-gray-700 max-h-32 overflow-y-auto">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Selected Text
+            </label>
+            <div className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-sm text-gray-700 dark:text-gray-300 max-h-32 overflow-y-auto">
               {selectedText}
             </div>
           </div>
@@ -247,12 +297,12 @@ export function QuickAddDialog({ onSuccess, onError }: QuickAddDialogProps): Rea
 
             {/* Tag suggestions dropdown */}
             {showTagSuggestions && tagSuggestions.length > 0 && (
-              <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-40 overflow-y-auto">
+              <div className="absolute z-10 w-full mt-1 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg max-h-40 overflow-y-auto">
                 {tagSuggestions.map((suggestion) => (
                   <button
                     key={suggestion}
                     type="button"
-                    className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 focus:bg-gray-100 focus:outline-none"
+                    className="w-full px-3 py-2 text-left text-sm text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-600 focus:bg-gray-100 dark:focus:bg-gray-600 focus:outline-none"
                     onMouseDown={(e) => {
                       e.preventDefault();
                       handleTagSuggestionClick(suggestion);
@@ -268,7 +318,7 @@ export function QuickAddDialog({ onSuccess, onError }: QuickAddDialogProps): Rea
           {/* Error message */}
           {error && selectedText && (
             <div
-              className="px-4 py-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700"
+              className="px-4 py-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-sm text-red-700 dark:text-red-400"
               role="alert"
             >
               {error}

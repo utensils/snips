@@ -12,6 +12,9 @@ pub enum AppError {
     #[error("Invalid input: {0}")]
     InvalidInput(String),
 
+    #[error("Validation error: {0}")]
+    Validation(String),
+
     #[error("Duplicate entry: {0}")]
     Duplicate(String),
 

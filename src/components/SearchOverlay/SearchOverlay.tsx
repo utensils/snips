@@ -4,8 +4,8 @@ import { FixedSizeList as List } from 'react-window';
 
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
-import { Checkbox } from '@/components/ui/Checkbox';
 import { Input } from '@/components/ui/Input';
+import { KeyboardShortcutHint } from '@/components/ui/KeyboardShortcutsHelp';
 import { Spinner } from '@/components/ui/Spinner';
 import { Toast, useToast } from '@/components/ui/Toast';
 import { useDebounce } from '@/hooks/useDebounce';
@@ -38,33 +38,52 @@ function SearchResultItem({
   // Determine background color based on selection and focus state
   const getBackgroundClass = (): string => {
     if (isSelected && isFocused) {
-      return 'bg-blue-100 border-l-4 border-l-blue-500';
+      return 'bg-blue-100 dark:bg-blue-900/40 border-l-4 border-l-blue-500 dark:border-l-blue-400';
     }
     if (isSelected) {
-      return 'bg-blue-50 border-l-4 border-l-blue-400';
+      return 'bg-blue-50 dark:bg-blue-900/20 border-l-4 border-l-blue-400 dark:border-l-blue-500';
     }
     if (isFocused) {
-      return 'bg-gray-100';
+      return 'bg-gray-100 dark:bg-gray-800';
     }
-    return 'bg-white hover:bg-gray-50';
+    return 'bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800/50';
   };
 
   return (
     <div
       style={style}
+      onClick={onToggleSelect}
       className={`
-        px-4 py-3 border-b border-gray-200 transition-all duration-150
+        px-4 py-3 border-b border-gray-200 dark:border-gray-700 transition-all duration-150 cursor-pointer
         ${getBackgroundClass()}
       `}
+      role="button"
+      tabIndex={-1}
+      aria-label={`${isSelected ? 'Deselect' : 'Select'} snippet: ${result.name}`}
     >
       <div className="flex items-start gap-3">
-        <div className="pt-1">
-          <Checkbox checked={isSelected} onChange={onToggleSelect} aria-label="Select snippet" />
+        <div className="flex items-center justify-center w-5 h-5 mt-0.5">
+          {isSelected ? (
+            <svg
+              className="w-5 h-5 text-blue-600 dark:text-blue-400"
+              fill="currentColor"
+              viewBox="0 0 20 20"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                fillRule="evenodd"
+                d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                clipRule="evenodd"
+              />
+            </svg>
+          ) : (
+            <div className="w-5 h-5 border-2 border-gray-300 dark:border-gray-600 rounded-full" />
+          )}
         </div>
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1">
+          <div className="flex items-center gap-2 mb-1 flex-wrap">
             <h3
-              className={`font-medium truncate ${isSelected ? 'text-blue-900' : 'text-gray-900'}`}
+              className={`font-medium truncate ${isSelected ? 'text-blue-900 dark:text-blue-100' : 'text-gray-900 dark:text-gray-100'}`}
             >
               {result.name}
             </h3>
@@ -73,26 +92,21 @@ function SearchResultItem({
                 {result.usage_count}x
               </Badge>
             )}
-            {isSelected && (
-              <Badge variant="primary" size="sm">
-                Selected
-              </Badge>
+            {result.tags && result.tags.length > 0 && (
+              <>
+                {result.tags.map((tag) => (
+                  <Badge key={tag} size="sm">
+                    {tag}
+                  </Badge>
+                ))}
+              </>
             )}
           </div>
           <p
-            className={`text-sm line-clamp-2 mb-1 ${isSelected ? 'text-blue-800' : 'text-gray-600'}`}
+            className={`text-sm line-clamp-2 ${isSelected ? 'text-blue-800 dark:text-blue-200' : 'text-gray-600 dark:text-gray-300'}`}
           >
             {result.content}
           </p>
-          {result.tags && result.tags.length > 0 && (
-            <div className="flex gap-1 flex-wrap">
-              {result.tags.map((tag) => (
-                <Badge key={tag} size="sm">
-                  {tag}
-                </Badge>
-              ))}
-            </div>
-          )}
         </div>
       </div>
     </div>
@@ -179,8 +193,8 @@ export function SearchOverlay(): ReactElement {
       // Get selected snippets in order
       const selectedResults = searchResults.filter((r) => selectedSnippets.has(r.id));
 
-      // Concatenate content with newline separator
-      const content = selectedResults.map((r) => r.content).join('\n');
+      // Concatenate content with double newline separator (empty line between)
+      const content = selectedResults.map((r) => r.content).join('\n\n');
 
       // Copy to clipboard using Tauri command
       await invoke('copy_to_clipboard', { text: content });
@@ -237,9 +251,12 @@ export function SearchOverlay(): ReactElement {
   const listHeight = Math.min(searchResults.length, MAX_VISIBLE_ITEMS) * ITEM_HEIGHT;
 
   return (
-    <div className="flex flex-col h-screen bg-white">
+    <div className="flex flex-col h-screen bg-white dark:bg-gray-900 animate-fade-in-scale">
       {/* Header */}
-      <div className="flex-shrink-0 p-4 border-b border-gray-200">
+      <div
+        className="flex-shrink-0 p-4 border-b border-gray-200 dark:border-gray-700 animate-slide-down"
+        data-tauri-drag-region
+      >
         <div className="flex items-center gap-3">
           <div className="flex-1">
             <Input
@@ -260,8 +277,8 @@ export function SearchOverlay(): ReactElement {
 
         {/* Selected count indicator */}
         {selectedSnippets.size > 0 && (
-          <div className="mt-3 flex items-center justify-between">
-            <span className="text-sm text-gray-600">
+          <div className="mt-3 flex items-center justify-between animate-slide-down">
+            <span className="text-sm text-gray-600 dark:text-gray-400">
               {selectedSnippets.size} snippet{selectedSnippets.size === 1 ? '' : 's'} selected
             </span>
             <div className="flex gap-2">
@@ -287,7 +304,7 @@ export function SearchOverlay(): ReactElement {
 
         {/* Empty state */}
         {showEmpty && (
-          <div className="flex flex-col items-center justify-center h-32 text-gray-500">
+          <div className="flex flex-col items-center justify-center h-32 text-gray-500 dark:text-gray-400">
             <p className="text-lg font-medium">No snippets found</p>
             <p className="text-sm mt-1">Try a different search term</p>
           </div>
@@ -321,11 +338,28 @@ export function SearchOverlay(): ReactElement {
           </List>
         )}
 
-        {/* Initial state */}
+        {/* Initial state with keyboard shortcuts help */}
         {!isSearching && !debouncedQuery.trim() && (
-          <div className="flex flex-col items-center justify-center h-32 text-gray-400">
-            <p className="text-lg">Start typing to search snippets</p>
-            <p className="text-sm mt-1">Use ↑↓ to navigate, Space to select, Enter to copy</p>
+          <div className="flex flex-col items-center justify-center p-8 text-gray-500 dark:text-gray-400">
+            <p className="text-lg mb-4">Start typing to search snippets</p>
+            <div className="space-y-2 text-sm">
+              <div className="flex items-center gap-2">
+                <KeyboardShortcutHint keys={['↑', '↓']} />
+                <span>Navigate results</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <KeyboardShortcutHint keys={['Space']} />
+                <span>Toggle selection</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <KeyboardShortcutHint keys={['Enter']} />
+                <span>Copy selected</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <KeyboardShortcutHint keys={['Esc']} />
+                <span>Close window</span>
+              </div>
+            </div>
           </div>
         )}
       </div>

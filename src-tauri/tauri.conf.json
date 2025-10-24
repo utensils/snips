@@ -9,6 +9,11 @@
     "beforeBuildCommand": "bun run build",
     "frontendDist": "../dist"
   },
+  "plugins": {
+    "sql": {
+      "preload": ["sqlite:snips.db"]
+    }
+  },
   "app": {
     "windows": [
       {

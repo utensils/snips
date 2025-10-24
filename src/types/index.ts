@@ -12,3 +12,6 @@ export type {
   RecentActivity,
   GlobalAnalytics,
 } from './analytics';
+
+// Storage types
+export type { BackupConfig, BackupInfo, DatabaseStats, ExportData, SnippetExport } from './storage';

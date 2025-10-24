@@ -31,6 +31,13 @@ pub fn get_migrations() -> Vec<Migration> {
             sql: include_str!("../migrations/003_create_indexes.sql"),
             kind: MigrationKind::Up,
         },
+        // Migration 4: Create settings table
+        Migration {
+            version: 4,
+            description: "create_settings_table",
+            sql: include_str!("../migrations/004_create_settings_table.sql"),
+            kind: MigrationKind::Up,
+        },
     ]
 }
 
@@ -78,7 +85,7 @@ mod tests {
     #[test]
     fn test_migrations_count() {
         let migrations = get_migrations();
-        assert_eq!(migrations.len(), 3);
+        assert_eq!(migrations.len(), 4);
     }
 
     #[test]
@@ -87,5 +94,6 @@ mod tests {
         assert_eq!(migrations[0].version, 1);
         assert_eq!(migrations[1].version, 2);
         assert_eq!(migrations[2].version, 3);
+        assert_eq!(migrations[3].version, 4);
     }
 }

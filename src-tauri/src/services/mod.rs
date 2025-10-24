@@ -1,6 +1,9 @@
+pub mod analytics;
+pub mod backup_scheduler;
 pub mod database;
 pub mod menubar;
 pub mod search;
+pub mod settings;
 pub mod shortcuts;
 pub mod tags;
 pub mod window;

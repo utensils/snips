@@ -3,8 +3,11 @@ pub mod models;
 pub mod services;
 pub mod utils;
 
+use services::backup_scheduler::{BackupScheduler, BackupSchedulerState};
 use services::database::{self, DbPool};
+use std::sync::Arc;
 use tauri::Manager;
+use tokio::sync::{Mutex, RwLock};
 
 // Re-export commands for use in tests and external crates
 pub use commands::*;
@@ -32,18 +35,17 @@ fn init_system_tray(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Erro
         true,
         Some("CmdOrCtrl+Shift+A"),
     )?;
-    let management_item =
-        MenuItem::with_id(app, "management", "Manage Snippets", true, None::<&str>)?;
+    let settings_item = MenuItem::with_id(app, "settings", "Settings", true, None::<&str>)?;
     let quit_item = MenuItem::with_id(app, "quit", "Quit", true, Some("CmdOrCtrl+Q"))?;
 
     // Build the menu
     let menu = Menu::with_items(
         app,
-        &[&search_item, &quick_add_item, &management_item, &quit_item],
+        &[&search_item, &quick_add_item, &settings_item, &quit_item],
     )?;
 
-    // Load the tray icon
-    let icon_bytes = include_bytes!("../icons/icon.png");
+    // Load the tray icon (menubar icon for macOS)
+    let icon_bytes = include_bytes!("../icons/icon-menubar.png");
     let icon = Image::from_bytes(icon_bytes)?;
 
     // Build and configure the tray icon
@@ -82,6 +84,24 @@ pub fn run() {
                 match database::init_db_pool(&handle).await {
                     Ok(pool) => {
                         handle.manage(DbPool(pool));
+                        // Initialize settings service state (lazy initialization)
+                        handle.manage(commands::settings_commands::SettingsServiceState(
+                            Mutex::new(None),
+                        ));
+                        // Initialize backup scheduler state
+                        handle.manage(BackupSchedulerState(Arc::new(RwLock::new(None))));
+
+                        // Initialize and start backup scheduler
+                        let scheduler = BackupScheduler::new(handle.clone());
+                        tauri::async_runtime::spawn(async move {
+                            scheduler.start().await;
+                        });
+
+                        // Store scheduler in state (already in async context, no block_on needed)
+                        let state = handle.state::<BackupSchedulerState>();
+                        let mut scheduler_lock = state.0.write().await;
+                        *scheduler_lock = Some(BackupScheduler::new(handle.clone()));
+
                         Ok(())
                     }
                     Err(e) => {
@@ -112,9 +132,9 @@ pub fn run() {
                         eprintln!("Failed to show quick add window: {}", e);
                     }
                 }
-                "management" => {
-                    if let Err(e) = services::window::show_management_window(app) {
-                        eprintln!("Failed to show management window: {}", e);
+                "settings" => {
+                    if let Err(e) = services::window::show_settings_window(app) {
+                        eprintln!("Failed to show settings window: {}", e);
                     }
                 }
                 "quit" => {
@@ -132,10 +152,22 @@ pub fn run() {
             commands::snippet_commands::update_snippet,
             commands::snippet_commands::delete_snippet,
             commands::search_commands::search_snippets,
+            commands::analytics_commands::record_snippet_usage,
+            commands::analytics_commands::get_snippet_analytics,
+            commands::analytics_commands::get_global_analytics,
+            commands::analytics_commands::copy_snippets_with_analytics,
+            commands::analytics_commands::clear_all_analytics,
+            commands::analytics_commands::clear_analytics_before,
+            commands::analytics_commands::export_analytics_to_json,
+            commands::settings_commands::get_settings,
+            commands::settings_commands::update_settings,
+            commands::settings_commands::get_storage_type,
+            commands::settings_commands::set_storage_type,
             commands::window_commands::show_search_window,
             commands::window_commands::hide_search_window,
             commands::window_commands::toggle_search_window,
             commands::window_commands::show_management_window,
+            commands::window_commands::show_settings_window,
             commands::window_commands::show_quick_add_window,
             commands::window_commands::update_badge_count,
             commands::shortcut_commands::get_default_shortcuts,
@@ -144,7 +176,15 @@ pub fn run() {
             commands::shortcut_commands::is_shortcut_valid,
             commands::shortcut_commands::reregister_default_shortcuts,
             commands::clipboard_commands::get_selected_text,
-            commands::clipboard_commands::copy_to_clipboard
+            commands::clipboard_commands::copy_to_clipboard,
+            commands::storage_commands::backup_database,
+            commands::storage_commands::restore_database,
+            commands::storage_commands::get_database_stats,
+            commands::storage_commands::export_to_json,
+            commands::storage_commands::import_from_json,
+            commands::storage_commands::list_backups,
+            commands::storage_commands::get_backup_config,
+            commands::storage_commands::update_backup_config
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

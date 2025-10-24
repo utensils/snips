@@ -26,6 +26,12 @@ pub async fn show_management_window(app: AppHandle) -> Result<(), String> {
     window::show_management_window(&app).map_err(|e| e.to_string())
 }
 
+/// Shows the settings window
+#[tauri::command]
+pub async fn show_settings_window(app: AppHandle) -> Result<(), String> {
+    window::show_settings_window(&app).map_err(|e| e.to_string())
+}
+
 /// Shows the quick add window
 #[tauri::command]
 pub async fn show_quick_add_window(app: AppHandle) -> Result<(), String> {

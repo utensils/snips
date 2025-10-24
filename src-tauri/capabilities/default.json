@@ -1,7 +1,13 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Capability for the main window",
-  "windows": ["main"],
-  "permissions": ["core:default", "opener:default"]
+  "description": "Capability for all application windows",
+  "windows": ["main", "search", "quick-add", "management", "settings"],
+  "permissions": [
+    "core:default",
+    "opener:default",
+    "core:event:allow-listen",
+    "core:event:allow-emit",
+    "core:event:allow-emit-to"
+  ]
 }
