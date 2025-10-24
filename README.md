@@ -1,7 +1,12 @@
+# Snips
+
+[![Rust CI](https://github.com/utensils/snips/actions/workflows/rust.yml/badge.svg)](https://github.com/utensils/snips/actions/workflows/rust.yml)
+[![Build](https://github.com/utensils/snips/actions/workflows/build.yml/badge.svg)](https://github.com/utensils/snips/actions/workflows/build.yml)
+[![codecov](https://codecov.io/gh/utensils/snips/graph/badge.svg)](https://codecov.io/gh/utensils/snips)
+[![License Check](https://github.com/utensils/snips/actions/workflows/license-check.yml/badge.svg)](https://github.com/utensils/snips/actions/workflows/license-check.yml)
+
 <div align="center">
   <img src="src-tauri/icons/128x128@2x.png" alt="Snips Logo" width="128" height="128">
-
-# Snips
 
 A macOS-native snippet management tool designed for building LLM prompts from reusable text snippets.
 
@@ -141,6 +146,10 @@ See [STANDARDS.md](STANDARDS.md) for complete guidelines.
 ## Recommended IDE Setup
 
 [VS Code](https://code.visualstudio.com/) with extensions: [Tauri](https://marketplace.visualstudio.com/items?itemName=tauri-apps.tauri-vscode), [rust-analyzer](https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer), [ESLint](https://marketplace.visualstudio.com/items?itemName=dbaeumer.vscode-eslint), [Prettier](https://marketplace.visualstudio.com/items?itemName=esbenp.prettier-vscode)
+
+## License
+
+MIT License - see [LICENSE](LICENSE) for details.
 
 ## Support
 
