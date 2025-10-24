@@ -2,19 +2,11 @@
   "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
   "packages": {
     ".": {
-      "release-type": "rust",
+      "release-type": "node",
       "changelog-path": "CHANGELOG.md",
-      "extra-files": ["package.json", "package-lock.json", "src-tauri/tauri.conf.json"],
+      "extra-files": ["src-tauri/Cargo.toml", "src-tauri/Cargo.lock", "src-tauri/tauri.conf.json"],
       "bump-minor-pre-major": true,
       "bump-patch-for-minor-pre-major": true
     }
-  },
-  "plugins": [
-    {
-      "type": "node-workspace"
-    },
-    {
-      "type": "cargo-workspace"
-    }
-  ]
+  }
 }
