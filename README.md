@@ -1,6 +1,13 @@
+<div align="center">
+  <img src="src-tauri/icons/128x128@2x.png" alt="Snips Logo" width="128" height="128">
+
 # Snips
 
-A macOS-native snippet management tool designed for building LLM prompts from reusable text snippets. Quick access via global shortcuts enables efficient search, selection, and combination of multiple snippets.
+A macOS-native snippet management tool designed for building LLM prompts from reusable text snippets.
+
+Quick access via global shortcuts enables efficient search, selection, and combination of multiple snippets.
+
+</div>
 
 ## Features
 
@@ -55,49 +62,30 @@ rustc --version  # Should show 1.82.0 or higher
 ```bash
 # Run in development mode with hot-reload
 npm run tauri dev
-```
 
-### Building
-
-```bash
 # Build for production
 npm run tauri build
 ```
 
 The compiled application will be in `src-tauri/target/release/`.
 
-## Available Scripts
+### Common Commands
 
-### Development
+```bash
+# Code quality
+npm run check-all          # Run all checks before committing
+npm run format             # Format code
+npm run lint               # Lint TypeScript/React
 
-- `npm run dev` - Start Vite dev server
-- `npm run tauri dev` - Run Tauri app in development mode
+# Testing
+npm run test               # Run tests in watch mode
+npm run test:coverage      # Generate coverage report
 
-### Build
-
-- `npm run build` - Build frontend for production
-- `npm run tauri build` - Build complete Tauri application
-
-### Code Quality
-
-- `npm run format` - Format code with Prettier
-- `npm run format:check` - Check code formatting
-- `npm run lint` - Lint TypeScript/React code
-- `npm run lint:fix` - Fix linting issues automatically
-- `npm run type-check` - Check TypeScript types
-- `npm run check-all` - Run all quality checks (format, lint, type-check, tests)
-
-### Testing
-
-- `npm run test` - Run tests in watch mode
-- `npm run test:coverage` - Run tests with coverage report
-- `npm run test:ui` - Open Vitest UI
-
-### Rust
-
-- `cargo fmt` - Format Rust code
-- `cargo clippy` - Lint Rust code
-- `cargo test` - Run Rust tests
+# Rust
+cargo fmt                  # Format Rust code
+cargo clippy               # Lint Rust code
+cargo test                 # Run Rust tests
+```
 
 ## Project Structure
 
@@ -123,82 +111,37 @@ snips/
 
 ## Contributing
 
-We welcome contributions! Please see our [contributing guidelines](STANDARDS.md) for detailed information.
-
-### Quick Start for Contributors
+We welcome contributions! Follow these steps:
 
 1. **Fork and clone** the repository
 2. **Create a branch**: `git checkout -b feature/your-feature-name`
 3. **Make your changes** following our [coding standards](STANDARDS.md)
 4. **Run quality checks**: `npm run check-all`
-5. **Commit your changes** using [Conventional Commits](https://www.conventionalcommits.org/)
+5. **Commit** using [Conventional Commits](https://www.conventionalcommits.org/) (e.g., `feat(search): add fuzzy matching`)
 6. **Push and create a Pull Request**
 
-### Code Quality Standards
+### Standards
 
 - All code must pass ESLint/Clippy with no warnings
 - All code must be formatted with Prettier/rustfmt
-- All tests must pass
-- New features require tests
+- All tests must pass; new features require tests
 - TypeScript strict mode must be satisfied
 - No `any` types or Rust `unwrap()` in production code
 
-See [STANDARDS.md](STANDARDS.md) for complete coding standards and best practices.
+Git hooks automatically run formatting, linting, and type checking on commit.
 
-### Commit Message Format
-
-```
-<type>(<scope>): <subject>
-
-<body>
-
-<footer>
-```
-
-**Types**: `feat`, `fix`, `refactor`, `docs`, `test`, `chore`, `perf`, `style`
-
-**Example**:
-
-```
-feat(search): add fuzzy matching to search results
-
-Implemented FTS5 fuzzy matching with configurable threshold.
-Improves search experience for typos and partial matches.
-
-Closes #42
-```
-
-### Pre-commit Checks
-
-Git hooks automatically run on commit:
-
-- Code formatting (Prettier/rustfmt)
-- Linting (ESLint/Clippy)
-- Type checking (TypeScript)
-- Related tests
-
-### Pull Request Process
-
-1. Ensure all tests pass and code follows style guidelines
-2. Update documentation if needed
-3. Add tests for new features
-4. Fill out the PR template completely
-5. Request review from maintainers
+See [STANDARDS.md](STANDARDS.md) for complete guidelines.
 
 ## Documentation
 
-- [VISION.md](VISION.md) - Product vision and feature roadmap
-- [TECH_DESIGN.md](TECH_DESIGN.md) - Technical architecture and implementation plan
-- [STANDARDS.md](STANDARDS.md) - Coding standards and best practices
+- [VISION.md](VISION.md) - Product vision and roadmap
+- [TECH_DESIGN.md](TECH_DESIGN.md) - Technical architecture
+- [STANDARDS.md](STANDARDS.md) - Coding standards
 
 ## Recommended IDE Setup
 
-- [VS Code](https://code.visualstudio.com/) + [Tauri](https://marketplace.visualstudio.com/items?itemName=tauri-apps.tauri-vscode) + [rust-analyzer](https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer) + [ESLint](https://marketplace.visualstudio.com/items?itemName=dbaeumer.vscode-eslint) + [Prettier](https://marketplace.visualstudio.com/items?itemName=esbenp.prettier-vscode)
-
-## License
-
-[License details to be added]
+[VS Code](https://code.visualstudio.com/) with extensions: [Tauri](https://marketplace.visualstudio.com/items?itemName=tauri-apps.tauri-vscode), [rust-analyzer](https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer), [ESLint](https://marketplace.visualstudio.com/items?itemName=dbaeumer.vscode-eslint), [Prettier](https://marketplace.visualstudio.com/items?itemName=esbenp.prettier-vscode)
 
 ## Support
 
-For issues, questions, or suggestions, please [open an issue](../../issues) on GitHub
+For issues or questions, please [open an issue](../../issues) on GitHub.
