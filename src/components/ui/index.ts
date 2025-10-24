@@ -24,3 +24,6 @@ export type { SpinnerProps, SpinnerSize } from './Spinner';
 
 export { Textarea } from './Textarea';
 export type { TextareaProps } from './Textarea';
+
+export { Toast, useToast } from './Toast';
+export type { ToastProps, ToastVariant } from './Toast';

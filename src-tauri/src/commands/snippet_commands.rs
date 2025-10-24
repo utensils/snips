@@ -1,84 +1,10 @@
 use crate::models::{CreateSnippetInput, Snippet, SnippetId, UpdateSnippetInput};
 use crate::services::database::get_pool;
+use crate::services::tags;
 use crate::utils::error::AppError;
 use crate::utils::time::current_timestamp;
 use sqlx::Row;
 use tauri::AppHandle;
-
-/// Helper function to get or create a tag by name, returns tag_id
-async fn get_or_create_tag(app: &AppHandle, tag_name: &str) -> Result<i64, AppError> {
-    let pool = get_pool(app)?;
-
-    // Try to get existing tag
-    let result = sqlx::query("SELECT id FROM tags WHERE name = ?")
-        .bind(tag_name)
-        .fetch_optional(&pool)
-        .await?;
-
-    if let Some(row) = result {
-        return Ok(row.get(0));
-    }
-
-    // Create new tag if it doesn't exist
-    let result = sqlx::query("INSERT INTO tags (name) VALUES (?)")
-        .bind(tag_name)
-        .execute(&pool)
-        .await?;
-
-    Ok(result.last_insert_rowid())
-}
-
-/// Helper function to associate tags with a snippet
-async fn associate_tags(app: &AppHandle, snippet_id: i64, tags: &[String]) -> Result<(), AppError> {
-    let pool = get_pool(app)?;
-
-    for tag_name in tags {
-        let tag_name = tag_name.trim();
-        if tag_name.is_empty() {
-            continue;
-        }
-
-        let tag_id = get_or_create_tag(app, tag_name).await?;
-
-        // Create snippet-tag association (ignore duplicates)
-        sqlx::query("INSERT OR IGNORE INTO snippet_tags (snippet_id, tag_id) VALUES (?, ?)")
-            .bind(snippet_id)
-            .bind(tag_id)
-            .execute(&pool)
-            .await?;
-    }
-
-    Ok(())
-}
-
-/// Helper function to get tags for a snippet
-async fn get_snippet_tags(app: &AppHandle, snippet_id: i64) -> Result<Vec<String>, AppError> {
-    let pool = get_pool(app)?;
-
-    let tags = sqlx::query(
-        "SELECT t.name FROM tags t
-         INNER JOIN snippet_tags st ON t.id = st.tag_id
-         WHERE st.snippet_id = ?
-         ORDER BY t.name",
-    )
-    .bind(snippet_id)
-    .fetch_all(&pool)
-    .await?;
-
-    Ok(tags.iter().map(|row| row.get(0)).collect())
-}
-
-/// Helper function to remove all tags from a snippet
-async fn remove_snippet_tags(app: &AppHandle, snippet_id: i64) -> Result<(), AppError> {
-    let pool = get_pool(app)?;
-
-    sqlx::query("DELETE FROM snippet_tags WHERE snippet_id = ?")
-        .bind(snippet_id)
-        .execute(&pool)
-        .await?;
-
-    Ok(())
-}
 
 /// Create a new snippet with optional tags
 #[tauri::command]
@@ -118,7 +44,7 @@ pub async fn create_snippet(app: AppHandle, input: CreateSnippetInput) -> Result
 
     // Associate tags
     if !input.tags.is_empty() {
-        associate_tags(&app, snippet_id, &input.tags).await?;
+        tags::associate_tags(&app, snippet_id, &input.tags).await?;
     }
 
     // Fetch and return the created snippet with tags
@@ -137,12 +63,12 @@ pub async fn get_snippet(app: AppHandle, id: SnippetId) -> Result<Snippet, Strin
     .bind(id.0)
     .fetch_optional(&pool)
     .await
-    .map_err(|e| AppError::Sqlx(e).to_string())?;
+    .map_err(|e| AppError::from(e).to_string())?;
 
     match result {
         Some(row) => {
             let snippet_id: i64 = row.get(0);
-            let tags = get_snippet_tags(&app, snippet_id).await?;
+            let tags = tags::get_snippet_tags(&app, snippet_id).await?;
 
             Ok(Snippet {
                 id: SnippetId(snippet_id),
@@ -169,12 +95,12 @@ pub async fn get_all_snippets(app: AppHandle) -> Result<Vec<Snippet>, String> {
     )
     .fetch_all(&pool)
     .await
-    .map_err(|e| AppError::Sqlx(e).to_string())?;
+    .map_err(|e| AppError::from(e).to_string())?;
 
     let mut snippets = Vec::new();
     for row in results {
         let snippet_id: i64 = row.get(0);
-        let tags = get_snippet_tags(&app, snippet_id).await?;
+        let tags = tags::get_snippet_tags(&app, snippet_id).await?;
 
         snippets.push(Snippet {
             id: SnippetId(snippet_id),
@@ -212,7 +138,7 @@ pub async fn update_snippet(
         .bind(id.0)
         .fetch_optional(&pool)
         .await
-        .map_err(|e| AppError::Sqlx(e).to_string())?;
+        .map_err(|e| AppError::from(e).to_string())?;
 
     if exists.is_none() {
         return Err(AppError::NotFound(format!("Snippet with id {} not found", id.0)).into());
@@ -241,9 +167,9 @@ pub async fn update_snippet(
     })?;
 
     // Update tags: remove old associations and create new ones
-    remove_snippet_tags(&app, id.0).await?;
+    tags::remove_snippet_tags(&app, id.0).await?;
     if !input.tags.is_empty() {
-        associate_tags(&app, id.0, &input.tags).await?;
+        tags::associate_tags(&app, id.0, &input.tags).await?;
     }
 
     // Fetch and return the updated snippet
@@ -260,7 +186,7 @@ pub async fn delete_snippet(app: AppHandle, id: SnippetId) -> Result<(), String>
         .bind(id.0)
         .fetch_optional(&pool)
         .await
-        .map_err(|e| AppError::Sqlx(e).to_string())?;
+        .map_err(|e| AppError::from(e).to_string())?;
 
     if exists.is_none() {
         return Err(AppError::NotFound(format!("Snippet with id {} not found", id.0)).into());
@@ -271,7 +197,7 @@ pub async fn delete_snippet(app: AppHandle, id: SnippetId) -> Result<(), String>
         .bind(id.0)
         .execute(&pool)
         .await
-        .map_err(|e| AppError::Sqlx(e).to_string())?;
+        .map_err(|e| AppError::from(e).to_string())?;
 
     Ok(())
 }

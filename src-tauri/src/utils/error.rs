@@ -24,6 +24,15 @@ pub enum AppError {
     #[error("Serialization error: {0}")]
     Serialization(#[from] serde_json::Error),
 
+    #[error("Tauri error: {0}")]
+    TauriError(String),
+
+    #[error("External process error: {0}")]
+    External(String),
+
+    #[error("Unsupported operation: {0}")]
+    Unsupported(String),
+
     #[error("Unknown error: {0}")]
     Unknown(String),
 }

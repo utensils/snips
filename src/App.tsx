@@ -1,52 +1,86 @@
-import { invoke } from '@tauri-apps/api/core';
-import { type JSX, useState } from 'react';
+import { getCurrentWindow } from '@tauri-apps/api/window';
+import { type ReactElement, useEffect, useState } from 'react';
 
-import reactLogo from './assets/react.svg';
-import './App.css';
+import { QuickAddDialog } from '@/components/QuickAddDialog';
 
-function App(): JSX.Element {
-  const [greetMsg, setGreetMsg] = useState('');
-  const [name, setName] = useState('');
+/**
+ * Main App component that routes to different views based on window label
+ */
+function App(): ReactElement {
+  const [windowLabel, setWindowLabel] = useState<string>('');
+  const [isLoading, setIsLoading] = useState(true);
 
-  async function greet(): Promise<void> {
-    // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-    setGreetMsg(await invoke('greet', { name }));
+  useEffect(() => {
+    const getWindowLabel = async (): Promise<void> => {
+      try {
+        const window = getCurrentWindow();
+        const label = window.label;
+        setWindowLabel(label);
+        setIsLoading(false);
+      } catch (err) {
+        console.error('Failed to get window label:', err);
+        setIsLoading(false);
+      }
+    };
+
+    getWindowLabel();
+  }, []);
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-50">
+        <div className="text-center">
+          <div className="inline-block w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+          <p className="mt-4 text-sm text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
   }
 
-  return (
-    <main className="container">
-      <h1>Welcome to Tauri + React</h1>
-
-      <div className="row">
-        <a href="https://vite.dev" target="_blank" rel="noreferrer">
-          <img src="/vite.svg" className="logo vite" alt="Vite logo" />
-        </a>
-        <a href="https://tauri.app" target="_blank" rel="noreferrer">
-          <img src="/tauri.svg" className="logo tauri" alt="Tauri logo" />
-        </a>
-        <a href="https://react.dev" target="_blank" rel="noreferrer">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <p>Click on the Tauri, Vite, and React logos to learn more.</p>
-
-      <form
-        className="row"
-        onSubmit={(e) => {
-          e.preventDefault();
-          greet();
-        }}
-      >
-        <input
-          id="greet-input"
-          onChange={(e) => setName(e.currentTarget.value)}
-          placeholder="Enter a name..."
+  // Route to different views based on window label
+  switch (windowLabel) {
+    case 'quick-add':
+      return (
+        <QuickAddDialog
+          onSuccess={() => {
+            console.log('Snippet created successfully');
+          }}
+          onError={(error) => {
+            console.error('Failed to create snippet:', error);
+          }}
         />
-        <button type="submit">Greet</button>
-      </form>
-      <p>{greetMsg}</p>
-    </main>
-  );
+      );
+
+    case 'search':
+      return (
+        <div className="min-h-screen p-6 bg-gray-50">
+          <div className="max-w-2xl mx-auto">
+            <h1 className="text-2xl font-bold text-gray-900 mb-4">Search</h1>
+            <p className="text-gray-600">Search overlay coming soon...</p>
+          </div>
+        </div>
+      );
+
+    case 'management':
+      return (
+        <div className="min-h-screen p-6 bg-gray-50">
+          <div className="max-w-6xl mx-auto">
+            <h1 className="text-2xl font-bold text-gray-900 mb-4">Management</h1>
+            <p className="text-gray-600">Management window coming soon...</p>
+          </div>
+        </div>
+      );
+
+    default:
+      return (
+        <div className="min-h-screen p-6 bg-gray-50">
+          <div className="max-w-2xl mx-auto">
+            <h1 className="text-2xl font-bold text-gray-900 mb-4">Snips</h1>
+            <p className="text-gray-600">Unknown window: {windowLabel}</p>
+          </div>
+        </div>
+      );
+  }
 }
 
 export default App;
