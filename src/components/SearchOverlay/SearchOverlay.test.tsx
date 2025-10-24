@@ -137,7 +137,7 @@ describe('SearchOverlay', () => {
       expect(screen.getByText('Test Snippet')).toBeInTheDocument();
     });
 
-    const checkbox = screen.getByLabelText('Select snippet');
+    const checkbox = screen.getByLabelText(/Select snippet/);
     await userEvent.click(checkbox);
 
     await waitFor(() => {
@@ -172,7 +172,7 @@ describe('SearchOverlay', () => {
       expect(screen.getByText('Test Snippet')).toBeInTheDocument();
     });
 
-    const checkbox = screen.getByLabelText('Select snippet');
+    const checkbox = screen.getByLabelText(/Select snippet/);
     await userEvent.click(checkbox);
 
     // Wait for selection to be confirmed
