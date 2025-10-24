@@ -1,0 +1,3 @@
+[alias]
+lint = "clippy --all-targets --all-features -- -D warnings"
+lint-fix = "clippy --fix --all-targets --all-features --allow-dirty --allow-staged"
