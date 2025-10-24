@@ -1,16 +1,16 @@
-# Snips
-
-[![Rust CI](https://github.com/utensils/snips/actions/workflows/rust.yml/badge.svg)](https://github.com/utensils/snips/actions/workflows/rust.yml)
-[![Build](https://github.com/utensils/snips/actions/workflows/build.yml/badge.svg)](https://github.com/utensils/snips/actions/workflows/build.yml)
-[![codecov](https://codecov.io/gh/utensils/snips/graph/badge.svg)](https://codecov.io/gh/utensils/snips)
-[![License Check](https://github.com/utensils/snips/actions/workflows/license-check.yml/badge.svg)](https://github.com/utensils/snips/actions/workflows/license-check.yml)
-
 <div align="center">
   <img src="src-tauri/icons/128x128@2x.png" alt="Snips Logo" width="128" height="128">
+
+# Snips
 
 A macOS-native snippet management tool designed for building LLM prompts from reusable text snippets.
 
 Quick access via global shortcuts enables efficient search, selection, and combination of multiple snippets.
+
+[![Frontend Checks](https://github.com/utensils/snips/actions/workflows/frontend-checks.yml/badge.svg)](https://github.com/utensils/snips/actions/workflows/frontend-checks.yml)
+[![Backend Checks](https://github.com/utensils/snips/actions/workflows/backend-checks.yml/badge.svg)](https://github.com/utensils/snips/actions/workflows/backend-checks.yml)
+[![codecov](https://codecov.io/gh/utensils/snips/graph/badge.svg)](https://codecov.io/gh/utensils/snips)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 </div>
 
