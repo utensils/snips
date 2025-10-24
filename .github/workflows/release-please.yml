@@ -1,0 +1,27 @@
+name: Release Please
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: googleapis/release-please-action@v4
+        id: release
+        with:
+          # This token is automatically provided by GitHub Actions
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      # Optional: Output information about the release
+      - name: Show release outputs
+        if: ${{ steps.release.outputs.releases_created }}
+        run: |
+          echo "Releases created:"
+          echo "${{ toJSON(steps.release.outputs) }}"
