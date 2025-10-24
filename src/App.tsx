@@ -1,14 +1,14 @@
 import { invoke } from '@tauri-apps/api/core';
-import { useState } from 'react';
+import { type JSX, useState } from 'react';
 
 import reactLogo from './assets/react.svg';
 import './App.css';
 
-function App() {
+function App(): JSX.Element {
   const [greetMsg, setGreetMsg] = useState('');
   const [name, setName] = useState('');
 
-  async function greet() {
+  async function greet(): Promise<void> {
     // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
     setGreetMsg(await invoke('greet', { name }));
   }
