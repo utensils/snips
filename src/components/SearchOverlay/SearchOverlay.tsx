@@ -220,6 +220,28 @@ export function SearchOverlay(): ReactElement {
     }
   }, []);
 
+  // Handle select all snippets
+  const handleSelectAll = useCallback(() => {
+    if (searchResults.length === 0) {
+      return;
+    }
+
+    // Check if all are already selected
+    const allSelected = searchResults.every((r) => selectedSnippets.has(r.id));
+
+    if (allSelected) {
+      // Deselect all
+      clearSelected();
+    } else {
+      // Select all visible search results
+      searchResults.forEach((r) => {
+        if (!selectedSnippets.has(r.id)) {
+          toggleSelected(r.id);
+        }
+      });
+    }
+  }, [searchResults, selectedSnippets, clearSelected, toggleSelected]);
+
   // Handle copy to clipboard
   const handleCopy = useCallback(async () => {
     if (selectedSnippets.size === 0) {
@@ -267,6 +289,7 @@ export function SearchOverlay(): ReactElement {
         toggleSelected(result.id);
       }
     },
+    onSelectAll: handleSelectAll,
     onEscape: handleClose,
     enabled: searchResults.length > 0,
   });
@@ -287,6 +310,7 @@ export function SearchOverlay(): ReactElement {
   const showEmpty = !isSearching && debouncedQuery.trim() && !hasResults;
   const showResults = !isSearching && hasResults;
   const listHeight = Math.min(searchResults.length, MAX_VISIBLE_ITEMS) * ITEM_HEIGHT;
+  const allSelected = hasResults && searchResults.every((r) => selectedSnippets.has(r.id));
 
   return (
     <div className="flex flex-col h-screen bg-white dark:bg-gray-900 animate-fade-in-scale">
@@ -313,19 +337,30 @@ export function SearchOverlay(): ReactElement {
           </Button>
         </div>
 
-        {/* Selected count indicator */}
-        {selectedSnippets.size > 0 && (
-          <div className="mt-3 flex items-center justify-between animate-slide-down">
-            <span className="text-sm text-gray-600 dark:text-gray-400">
-              {selectedSnippets.size} snippet{selectedSnippets.size === 1 ? '' : 's'} selected
-            </span>
-            <div className="flex gap-2">
-              <Button size="sm" variant="ghost" onClick={() => clearSelected()}>
-                Clear
+        {/* Selected count indicator and actions */}
+        {hasResults && (
+          <div className="mt-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 animate-slide-down">
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-600 dark:text-gray-400">
+                {selectedSnippets.size > 0
+                  ? `${selectedSnippets.size} of ${searchResults.length} selected`
+                  : `${searchResults.length} result${searchResults.length === 1 ? '' : 's'}`}
+              </span>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button size="sm" variant="ghost" onClick={handleSelectAll}>
+                {allSelected ? 'Deselect All' : 'Select All'}
               </Button>
-              <Button size="sm" onClick={handleCopy}>
-                Copy All
-              </Button>
+              {selectedSnippets.size > 0 && (
+                <>
+                  <Button size="sm" variant="ghost" onClick={() => clearSelected()}>
+                    Clear
+                  </Button>
+                  <Button size="sm" onClick={handleCopy}>
+                    Copy ({selectedSnippets.size})
+                  </Button>
+                </>
+              )}
             </div>
           </div>
         )}
@@ -378,6 +413,10 @@ export function SearchOverlay(): ReactElement {
               <div className="flex items-center gap-2">
                 <KeyboardShortcutHint keys={['Space']} />
                 <span>Toggle selection</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <KeyboardShortcutHint keys={['⌘/Ctrl', 'A']} />
+                <span>Select all</span>
               </div>
               <div className="flex items-center gap-2">
                 <KeyboardShortcutHint keys={['Enter']} />

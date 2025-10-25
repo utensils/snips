@@ -136,17 +136,19 @@ export function StorageTab(): ReactElement {
         </p>
       </div>
 
-      {/* Messages */}
-      {error && (
-        <Card className="p-4 bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800">
-          <p className="text-red-600 dark:text-red-400">{error}</p>
-        </Card>
-      )}
-      {successMessage && (
-        <Card className="p-4 bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800">
-          <p className="text-green-600 dark:text-green-400">{successMessage}</p>
-        </Card>
-      )}
+      {/* Status Messages - Fixed height container prevents layout shift */}
+      <div className="min-h-[60px]">
+        {error && (
+          <Card className="p-4 bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 transition-opacity duration-300">
+            <p className="text-red-600 dark:text-red-400">{error}</p>
+          </Card>
+        )}
+        {successMessage && (
+          <Card className="p-4 bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800 transition-opacity duration-300">
+            <p className="text-green-600 dark:text-green-400">{successMessage}</p>
+          </Card>
+        )}
+      </div>
 
       {/* Database Stats */}
       {stats && (

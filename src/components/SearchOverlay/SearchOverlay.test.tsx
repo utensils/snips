@@ -141,7 +141,7 @@ describe('SearchOverlay', () => {
     await userEvent.click(checkbox);
 
     await waitFor(() => {
-      expect(screen.getByText('1 snippet selected')).toBeInTheDocument();
+      expect(screen.getByText('1 of 1 selected')).toBeInTheDocument();
     });
   });
 
@@ -177,11 +177,11 @@ describe('SearchOverlay', () => {
 
     // Wait for selection to be confirmed
     await waitFor(() => {
-      expect(screen.getByText('1 snippet selected')).toBeInTheDocument();
+      expect(screen.getByText('1 of 1 selected')).toBeInTheDocument();
     });
 
-    // Now get the Copy All button
-    const copyButton = screen.getByRole('button', { name: /copy all/i });
+    // Now get the Copy button (with count)
+    const copyButton = screen.getByRole('button', { name: /copy \(1\)/i });
     await userEvent.click(copyButton);
 
     await waitFor(() => {
@@ -244,6 +244,219 @@ describe('SearchOverlay', () => {
     await waitFor(() => {
       expect(screen.getByText('react')).toBeInTheDocument();
       expect(screen.getByText('typescript')).toBeInTheDocument();
+    });
+  });
+
+  it('shows select all button when results are present', async () => {
+    const mockResults = [
+      {
+        id: 1,
+        name: 'Snippet 1',
+        content: 'Content 1',
+        description: null,
+        created_at: Date.now(),
+        updated_at: Date.now(),
+        tags: [],
+        usage_count: 0,
+        last_used: null,
+        relevance_score: 1.0,
+      },
+      {
+        id: 2,
+        name: 'Snippet 2',
+        content: 'Content 2',
+        description: null,
+        created_at: Date.now(),
+        updated_at: Date.now(),
+        tags: [],
+        usage_count: 0,
+        last_used: null,
+        relevance_score: 1.0,
+      },
+    ];
+
+    vi.mocked(invoke).mockResolvedValue(mockResults);
+
+    render(<SearchOverlay />);
+    const searchInput = screen.getByPlaceholderText('Search snippets...');
+
+    await userEvent.type(searchInput, 'test');
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /select all/i })).toBeInTheDocument();
+    });
+  });
+
+  it('selects all snippets when select all button is clicked', async () => {
+    const mockResults = [
+      {
+        id: 1,
+        name: 'Snippet 1',
+        content: 'Content 1',
+        description: null,
+        created_at: Date.now(),
+        updated_at: Date.now(),
+        tags: [],
+        usage_count: 0,
+        last_used: null,
+        relevance_score: 1.0,
+      },
+      {
+        id: 2,
+        name: 'Snippet 2',
+        content: 'Content 2',
+        description: null,
+        created_at: Date.now(),
+        updated_at: Date.now(),
+        tags: [],
+        usage_count: 0,
+        last_used: null,
+        relevance_score: 1.0,
+      },
+    ];
+
+    vi.mocked(invoke).mockResolvedValue(mockResults);
+
+    render(<SearchOverlay />);
+    const searchInput = screen.getByPlaceholderText('Search snippets...');
+
+    await userEvent.type(searchInput, 'test');
+
+    await waitFor(() => {
+      expect(screen.getByText('Snippet 1')).toBeInTheDocument();
+    });
+
+    const selectAllButton = screen.getByRole('button', { name: /select all/i });
+    await userEvent.click(selectAllButton);
+
+    await waitFor(() => {
+      expect(screen.getByText('2 of 2 selected')).toBeInTheDocument();
+    });
+  });
+
+  it('deselects all snippets when deselect all button is clicked', async () => {
+    const mockResults = [
+      {
+        id: 1,
+        name: 'Snippet 1',
+        content: 'Content 1',
+        description: null,
+        created_at: Date.now(),
+        updated_at: Date.now(),
+        tags: [],
+        usage_count: 0,
+        last_used: null,
+        relevance_score: 1.0,
+      },
+    ];
+
+    vi.mocked(invoke).mockResolvedValue(mockResults);
+
+    render(<SearchOverlay />);
+    const searchInput = screen.getByPlaceholderText('Search snippets...');
+
+    await userEvent.type(searchInput, 'test');
+
+    await waitFor(() => {
+      expect(screen.getByText('Snippet 1')).toBeInTheDocument();
+    });
+
+    // First select all
+    const selectAllButton = screen.getByRole('button', { name: /select all/i });
+    await userEvent.click(selectAllButton);
+
+    await waitFor(() => {
+      expect(screen.getByText('1 of 1 selected')).toBeInTheDocument();
+    });
+
+    // Then deselect all
+    const deselectAllButton = screen.getByRole('button', { name: /deselect all/i });
+    await userEvent.click(deselectAllButton);
+
+    await waitFor(() => {
+      expect(screen.getByText('1 result')).toBeInTheDocument();
+    });
+  });
+
+  it('handles Cmd+A keyboard shortcut to select all', async () => {
+    const mockResults = [
+      {
+        id: 1,
+        name: 'Snippet 1',
+        content: 'Content 1',
+        description: null,
+        created_at: Date.now(),
+        updated_at: Date.now(),
+        tags: [],
+        usage_count: 0,
+        last_used: null,
+        relevance_score: 1.0,
+      },
+      {
+        id: 2,
+        name: 'Snippet 2',
+        content: 'Content 2',
+        description: null,
+        created_at: Date.now(),
+        updated_at: Date.now(),
+        tags: [],
+        usage_count: 0,
+        last_used: null,
+        relevance_score: 1.0,
+      },
+    ];
+
+    vi.mocked(invoke).mockResolvedValue(mockResults);
+
+    render(<SearchOverlay />);
+    const searchInput = screen.getByPlaceholderText('Search snippets...');
+
+    await userEvent.type(searchInput, 'test');
+
+    await waitFor(() => {
+      expect(screen.getByText('Snippet 1')).toBeInTheDocument();
+    });
+
+    // Simulate Cmd+A
+    await userEvent.keyboard('{Meta>}a{/Meta}');
+
+    await waitFor(() => {
+      expect(screen.getByText('2 of 2 selected')).toBeInTheDocument();
+    });
+  });
+
+  it('handles Ctrl+A keyboard shortcut to select all', async () => {
+    const mockResults = [
+      {
+        id: 1,
+        name: 'Snippet 1',
+        content: 'Content 1',
+        description: null,
+        created_at: Date.now(),
+        updated_at: Date.now(),
+        tags: [],
+        usage_count: 0,
+        last_used: null,
+        relevance_score: 1.0,
+      },
+    ];
+
+    vi.mocked(invoke).mockResolvedValue(mockResults);
+
+    render(<SearchOverlay />);
+    const searchInput = screen.getByPlaceholderText('Search snippets...');
+
+    await userEvent.type(searchInput, 'test');
+
+    await waitFor(() => {
+      expect(screen.getByText('Snippet 1')).toBeInTheDocument();
+    });
+
+    // Simulate Ctrl+A
+    await userEvent.keyboard('{Control>}a{/Control}');
+
+    await waitFor(() => {
+      expect(screen.getByText('1 of 1 selected')).toBeInTheDocument();
     });
   });
 });

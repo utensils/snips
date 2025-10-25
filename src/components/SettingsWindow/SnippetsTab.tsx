@@ -310,23 +310,27 @@ export function SnippetsTab(): React.ReactElement {
         <Card className="flex-1 flex flex-col">
           {/* Header */}
           <div className="p-4 border-b border-gray-200 dark:border-gray-700">
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4">
               <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Snippets</h2>
-              <div className="flex gap-2">
-                <Button onClick={() => setShowTagManagement(true)} variant="secondary">
+              <div className="flex flex-wrap gap-2 w-full sm:w-auto">
+                <Button onClick={() => setShowTagManagement(true)} variant="secondary" size="sm">
                   Manage Tags
                 </Button>
-                <Button onClick={() => setShowDuplicateDetection(true)} variant="secondary">
+                <Button
+                  onClick={() => setShowDuplicateDetection(true)}
+                  variant="secondary"
+                  size="sm"
+                >
                   Find Duplicates
                 </Button>
-                <Button onClick={handleCreateNew} variant="primary">
+                <Button onClick={handleCreateNew} variant="primary" size="sm">
                   Create New
                 </Button>
               </div>
             </div>
 
             {/* Search and filters */}
-            <div className="flex gap-3 items-center">
+            <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
               <div className="flex-1">
                 <Input
                   type="text"
@@ -353,11 +357,11 @@ export function SnippetsTab(): React.ReactElement {
 
             {/* Bulk operations */}
             {hasSelection && (
-              <div className="mt-3 flex items-center justify-between p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+              <div className="mt-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
                 <span className="text-sm text-gray-700 dark:text-gray-300">
                   {selectedSnippetIds.size} selected
                 </span>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                   <Button onClick={clearSelection} variant="secondary" size="sm">
                     Clear Selection
                   </Button>

@@ -216,12 +216,14 @@ export function ShortcutsTab(): ReactElement {
           </p>
         </div>
 
-        {/* Error message */}
-        {error && (
-          <Card className="bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800">
-            <p className="text-red-800 dark:text-red-300 text-sm">{error}</p>
-          </Card>
-        )}
+        {/* Status Messages - Fixed height container prevents layout shift */}
+        <div className="min-h-[60px]">
+          {error && (
+            <Card className="bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 transition-opacity duration-300">
+              <p className="text-red-800 dark:text-red-300 text-sm">{error}</p>
+            </Card>
+          )}
+        </div>
 
         {/* Shortcuts list */}
         <Stack spacing="md">
@@ -275,7 +277,7 @@ export function ShortcutsTab(): ReactElement {
         </Stack>
 
         {/* Action buttons */}
-        <div className="flex items-center justify-between pt-4 border-t border-gray-200 dark:border-gray-700">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
           <Button
             variant="secondary"
             onClick={handleReset}
@@ -284,9 +286,11 @@ export function ShortcutsTab(): ReactElement {
             Reset to Defaults
           </Button>
 
-          <div className="flex items-center gap-3">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
             {hasChanges && (
-              <span className="text-sm text-gray-600 dark:text-gray-400">Unsaved changes</span>
+              <span className="text-sm text-gray-600 dark:text-gray-400 text-center sm:text-left">
+                Unsaved changes
+              </span>
             )}
             <Button
               onClick={handleSave}

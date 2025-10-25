@@ -5,6 +5,7 @@ interface UseKeyboardNavigationOptions {
   onSelect?: (index: number) => void;
   onEscape?: () => void;
   onToggle?: (index: number) => void;
+  onSelectAll?: () => void;
   enabled?: boolean;
 }
 
@@ -16,13 +17,14 @@ interface UseKeyboardNavigationReturn {
 /**
  * Hook for keyboard navigation in lists
  *
- * Handles arrow up/down, Enter, Escape, and Space keys
+ * Handles arrow up/down, Enter, Escape, Space, and Cmd/Ctrl+A keys
  */
 export function useKeyboardNavigation({
   itemCount,
   onSelect,
   onEscape,
   onToggle,
+  onSelectAll,
   enabled = true,
 }: UseKeyboardNavigationOptions): UseKeyboardNavigationReturn {
   const [focusedIndex, setFocusedIndex] = useState(0);
@@ -33,6 +35,15 @@ export function useKeyboardNavigation({
     }
 
     const handleKeyDown = (event: KeyboardEvent): void => {
+      // Handle Cmd/Ctrl+A for select all
+      if ((event.metaKey || event.ctrlKey) && event.key === 'a') {
+        event.preventDefault();
+        if (onSelectAll && itemCount > 0) {
+          onSelectAll();
+        }
+        return;
+      }
+
       switch (event.key) {
         case 'ArrowDown':
           event.preventDefault();
@@ -72,7 +83,7 @@ export function useKeyboardNavigation({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [enabled, itemCount, focusedIndex, onSelect, onEscape, onToggle]);
+  }, [enabled, itemCount, focusedIndex, onSelect, onEscape, onToggle, onSelectAll]);
 
   return { focusedIndex, setFocusedIndex };
 }
