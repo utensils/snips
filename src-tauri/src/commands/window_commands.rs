@@ -38,6 +38,12 @@ pub async fn show_quick_add_window(app: AppHandle) -> Result<(), String> {
     window::show_quick_add_window(&app).map_err(|e| e.to_string())
 }
 
+/// Hides the quick add window
+#[tauri::command]
+pub async fn hide_quick_add_window(app: AppHandle) -> Result<(), String> {
+    window::hide_quick_add_window(&app).map_err(|e| e.to_string())
+}
+
 /// Updates the menubar badge count
 #[tauri::command]
 pub async fn update_badge_count(app: AppHandle, count: u32) -> Result<(), String> {

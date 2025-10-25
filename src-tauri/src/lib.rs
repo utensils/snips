@@ -179,6 +179,7 @@ pub fn run() {
             commands::window_commands::show_management_window,
             commands::window_commands::show_settings_window,
             commands::window_commands::show_quick_add_window,
+            commands::window_commands::hide_quick_add_window,
             commands::window_commands::update_badge_count,
             commands::shortcut_commands::get_default_shortcuts,
             commands::shortcut_commands::register_custom_shortcut,

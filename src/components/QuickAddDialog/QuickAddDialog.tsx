@@ -1,3 +1,4 @@
+import { invoke } from '@tauri-apps/api/core';
 import { type UnlistenFn } from '@tauri-apps/api/event';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { type FormEvent, type ReactElement, useCallback, useEffect, useState } from 'react';
@@ -181,9 +182,16 @@ export function QuickAddDialog({ onSuccess, onError }: QuickAddDialogProps): Rea
 
       onSuccess?.();
 
-      // Close the window
-      const window = getCurrentWindow();
-      await window.close();
+      // Reset form state
+      setName('');
+      setDescription('');
+      setTags('');
+      setSelectedText('');
+      setError('');
+      setNameError('');
+
+      // Hide the window (don't close it - it's pre-created)
+      await invoke('hide_quick_add_window');
     } catch (err) {
       console.error('[QuickAdd] Failed to create snippet:', err);
       const errorMessage = err instanceof Error ? err.message : 'Failed to create snippet';
@@ -198,8 +206,17 @@ export function QuickAddDialog({ onSuccess, onError }: QuickAddDialogProps): Rea
 
   // Handle cancel/close
   const handleCancel = async (): Promise<void> => {
-    const window = getCurrentWindow();
-    await window.close();
+    // Reset form state
+    setName('');
+    setDescription('');
+    setTags('');
+    setSelectedText('');
+    setError('');
+    setNameError('');
+    setIsLoading(true); // Reset to loading state for next open
+
+    // Hide the window (don't close it - it's pre-created)
+    await invoke('hide_quick_add_window');
   };
 
   // Handle escape key

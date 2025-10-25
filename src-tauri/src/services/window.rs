@@ -202,6 +202,12 @@ pub fn hide_search_window(app: &AppHandle) -> Result<(), AppError> {
     Ok(())
 }
 
+pub fn hide_quick_add_window(app: &AppHandle) -> Result<(), AppError> {
+    let window = get_quick_add_window(app)?;
+    hide_window(&window)?;
+    Ok(())
+}
+
 /// Toggles the search window visibility
 pub fn toggle_search_window(app: &AppHandle) -> Result<(), AppError> {
     let window = get_search_window(app)?;
