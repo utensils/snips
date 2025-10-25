@@ -3,9 +3,11 @@
 
 # Snips
 
-A macOS-native snippet management tool designed for building LLM prompts from reusable text snippets.
+A snippet management tool designed for building LLM prompts from reusable text snippets.
 
 Quick access via global shortcuts enables efficient search, selection, and combination of multiple snippets.
+
+**Platforms**: macOS (primary), Linux (beta)
 
 [![Frontend Checks](https://github.com/utensils/snips/actions/workflows/frontend-checks.yml/badge.svg)](https://github.com/utensils/snips/actions/workflows/frontend-checks.yml)
 [![Backend Checks](https://github.com/utensils/snips/actions/workflows/backend-checks.yml/badge.svg)](https://github.com/utensils/snips/actions/workflows/backend-checks.yml)
@@ -16,11 +18,13 @@ Quick access via global shortcuts enables efficient search, selection, and combi
 
 ## Features
 
-- **Quick Snippet Capture**: Global shortcut (`Cmd+Shift+A`) to save selected text as a snippet
-- **Fast Search**: Full-text search with FTS5 across snippet names and tags (`Cmd+Shift+S`)
+- **Quick Snippet Capture**: Global shortcut to save selected text as a snippet
+  - macOS: `Cmd+Shift+A` (simulates Cmd+C)
+  - Linux: `Super+Alt+A` - Reads PRIMARY selection (auto-updated on text selection)
+- **Fast Search**: Full-text search with FTS5 across snippet names and tags
 - **Multi-Select**: Select and combine multiple snippets into a single clipboard entry
 - **Usage Analytics**: Track snippet usage frequency to improve search ranking
-- **Menubar Integration**: Persistent menubar icon with selection count badge
+- **Menubar Integration**: Persistent menubar/tray icon with selection count badge
 - **Local-First**: SQLite storage for fast, offline-ready performance
 
 ## Technology Stack
@@ -41,6 +45,35 @@ Quick access via global shortcuts enables efficient search, selection, and combi
 - **Rust** >= 1.82.0 (⚠️ **Important**: Tauri dependencies require Rust 1.82+)
 - **npm** >= 9.0.0
 - **[mise](https://mise.jdx.dev/)** (recommended for version management)
+
+**Linux**: Additional system dependencies required:
+
+```bash
+# Arch Linux
+sudo pacman -S webkit2gtk-4.1
+
+# Debian/Ubuntu
+sudo apt install libwebkit2gtk-4.1-dev
+
+# Fedora
+sudo dnf install webkit2gtk4.1-devel
+```
+
+**Linux Clipboard Notes:**
+
+- Supports both X11 and Wayland
+- Uses PRIMARY selection for quick text capture (reads highlighted text directly)
+- Falls back to CLIPBOARD if PRIMARY is empty
+- Requires running display server (X11 or Wayland)
+
+**Hyprland/Wayland Integration:**
+
+- D-Bus service available at `io.utensils.snips` for window manager integration
+- Add to your Hyprland config for Quick Add keybind:
+  ```conf
+  bind = SUPER ALT, A, exec, dbus-send --session --type=method_call --dest=io.utensils.snips /io/utensils/snips io.utensils.snips.ShowQuickAdd
+  ```
+- Available methods: `ShowQuickAdd`, `ShowSearch`, `ToggleSearch`, `ShowManagement`
 
 ### Installation
 

@@ -92,12 +92,74 @@ pub fn get_or_create_settings_window(app: &AppHandle) -> Result<WebviewWindow, A
 
 /// Shows a window and brings it to focus
 pub fn show_window(window: &WebviewWindow) -> Result<(), AppError> {
+    eprintln!(
+        "[DEBUG] [window.rs] show_window: is_visible={:?}, is_focused={:?}",
+        window.is_visible().unwrap_or(false),
+        window.is_focused().unwrap_or(false)
+    );
+
+    // Platform-specific workarounds for Wayland/Hyprland
+    #[cfg(target_os = "linux")]
+    {
+        // Workaround 1: Try hide/show pattern (works on some X11 window managers)
+        let _ = window.hide();
+        std::thread::sleep(std::time::Duration::from_millis(10));
+    }
+
     window
         .show()
         .map_err(|e| AppError::TauriError(e.to_string()))?;
+
+    eprintln!(
+        "[DEBUG] [window.rs] show_window: after show() - is_visible={:?}, is_focused={:?}",
+        window.is_visible().unwrap_or(false),
+        window.is_focused().unwrap_or(false)
+    );
+
+    // Give the compositor time to process the show request (Wayland)
+    #[cfg(target_os = "linux")]
+    std::thread::sleep(std::time::Duration::from_millis(20));
+
+    // Try multiple methods to ensure window gets focus on Wayland
     window
         .set_focus()
         .map_err(|e| AppError::TauriError(e.to_string()))?;
+
+    eprintln!(
+        "[DEBUG] [window.rs] show_window: after set_focus() - is_visible={:?}, is_focused={:?}",
+        window.is_visible().unwrap_or(false),
+        window.is_focused().unwrap_or(false)
+    );
+
+    // Try unminimize (X11 only, but harmless on Wayland)
+    eprintln!("[DEBUG] [window.rs] show_window: calling unminimize()");
+    let _ = window.unminimize();
+
+    // Multiple focus attempts for Wayland compositors that may ignore first attempts
+    #[cfg(target_os = "linux")]
+    {
+        for attempt in 1..3 {
+            std::thread::sleep(std::time::Duration::from_millis(10));
+            if let Err(e) = window.set_focus() {
+                eprintln!(
+                    "[DEBUG] [window.rs] show_window: focus retry {} failed: {}",
+                    attempt, e
+                );
+            } else {
+                eprintln!(
+                    "[DEBUG] [window.rs] show_window: focus retry {} succeeded",
+                    attempt
+                );
+            }
+        }
+    }
+
+    eprintln!(
+        "[DEBUG] [window.rs] show_window: final state - is_visible={:?}, is_focused={:?}",
+        window.is_visible().unwrap_or(false),
+        window.is_focused().unwrap_or(false)
+    );
+
     Ok(())
 }
 
@@ -187,29 +249,53 @@ pub fn show_settings_window(app: &AppHandle) -> Result<(), AppError> {
 
 /// Shows the quick add window with pre-captured selected text
 pub fn show_quick_add_window(app: &AppHandle) -> Result<(), AppError> {
+    eprintln!("[DEBUG] [window.rs] show_quick_add_window() called");
+
     // IMPORTANT: Capture selected text BEFORE showing window to avoid losing focus
     let selected_text = capture_selected_text_sync();
+    eprintln!(
+        "[DEBUG] [window.rs] Text capture result: {}",
+        match &selected_text {
+            Ok(t) => format!("Ok({} chars)", t.len()),
+            Err(e) => format!("Err({})", e),
+        }
+    );
 
+    eprintln!("[DEBUG] [window.rs] Getting or creating quick-add window");
     let window = get_or_create_quick_add_window(app)?;
+    eprintln!("[DEBUG] [window.rs] Window obtained successfully");
 
+    eprintln!("[DEBUG] [window.rs] Centering window");
     center_window(&window)?;
+    eprintln!("[DEBUG] [window.rs] Window centered");
+
+    eprintln!("[DEBUG] [window.rs] Showing window");
     show_window(&window)?;
+    eprintln!("[DEBUG] [window.rs] Window shown successfully");
 
     // Emit event AFTER showing window to ensure frontend listener is ready
     // Use a delay to allow the webview to initialize and frontend to mount
     if let Ok(text) = selected_text {
+        eprintln!("[DEBUG] [window.rs] Spawning thread to emit selected-text-captured event");
         let app_clone = app.clone();
         std::thread::spawn(move || {
             // Longer delay to ensure webview is fully initialized
             std::thread::sleep(std::time::Duration::from_millis(200));
+            eprintln!("[DEBUG] [window.rs] Emitting selected-text-captured event");
             // Use emit_to to target the specific window
             if let Err(e) =
                 app_clone.emit_to(QUICK_ADD_WINDOW_LABEL, "selected-text-captured", text)
             {
                 eprintln!("Failed to emit selected-text-captured event: {}", e);
+            } else {
+                eprintln!("[DEBUG] [window.rs] Event emitted successfully");
             }
         });
     } else if let Err(e) = selected_text {
+        eprintln!(
+            "[DEBUG] [window.rs] Text capture failed, emitting error event: {}",
+            e
+        );
         // If text capture failed, emit an error event
         let app_clone = app.clone();
         let error_msg = e.to_string();
@@ -224,6 +310,7 @@ pub fn show_quick_add_window(app: &AppHandle) -> Result<(), AppError> {
         });
     }
 
+    eprintln!("[DEBUG] [window.rs] show_quick_add_window() completed successfully");
     Ok(())
 }
 
@@ -274,10 +361,88 @@ fn capture_selected_text_sync() -> Result<String, AppError> {
         Ok(selected)
     }
 
-    #[cfg(not(target_os = "macos"))]
+    #[cfg(target_os = "linux")]
+    {
+        use arboard::{Clipboard, GetExtLinux, LinuxClipboardKind};
+
+        eprintln!("[DEBUG] [window.rs] Attempting to access PRIMARY selection on Linux");
+
+        // On Linux, read the PRIMARY selection (auto-updated when user selects text)
+        let mut clipboard = Clipboard::new().map_err(|e| {
+            eprintln!("[DEBUG] [window.rs] Failed to create clipboard: {}", e);
+            AppError::External(format!("Failed to access clipboard: {}", e))
+        })?;
+
+        eprintln!("[DEBUG] [window.rs] Clipboard created successfully");
+
+        // Try PRIMARY selection first
+        let primary_result = clipboard
+            .get()
+            .clipboard(LinuxClipboardKind::Primary)
+            .text();
+
+        match primary_result {
+            Ok(text) if !text.trim().is_empty() => {
+                eprintln!(
+                    "[DEBUG] [window.rs] PRIMARY selection: {} chars, starts with: {:?}",
+                    text.len(),
+                    &text[..text.len().min(50)]
+                );
+                Ok(text)
+            }
+            Ok(_text) => {
+                eprintln!("[DEBUG] [window.rs] PRIMARY selection is empty");
+                // PRIMARY is empty, fallback to standard CLIPBOARD
+                eprintln!("[DEBUG] [window.rs] Falling back to CLIPBOARD");
+                match get_clipboard_sync() {
+                    Ok(text) if !text.trim().is_empty() => {
+                        eprintln!(
+                            "[DEBUG] [window.rs] Got text from CLIPBOARD fallback: {:?} ({} chars)",
+                            &text[..text.len().min(50)],
+                            text.len()
+                        );
+                        Ok(text)
+                    }
+                    Ok(_) => {
+                        eprintln!("[DEBUG] [window.rs] CLIPBOARD is also empty");
+                        Err(AppError::NotFound("No text selected".to_string()))
+                    }
+                    Err(e) => {
+                        eprintln!("[DEBUG] [window.rs] Failed to read CLIPBOARD: {}", e);
+                        Err(AppError::NotFound("No text selected".to_string()))
+                    }
+                }
+            }
+            Err(e) => {
+                eprintln!("[DEBUG] [window.rs] PRIMARY selection error: {}", e);
+                // PRIMARY failed, fallback to standard CLIPBOARD
+                eprintln!("[DEBUG] [window.rs] Falling back to CLIPBOARD after error");
+                match get_clipboard_sync() {
+                    Ok(text) if !text.trim().is_empty() => {
+                        eprintln!(
+                            "[DEBUG] [window.rs] Got text from CLIPBOARD fallback: {:?} ({} chars)",
+                            &text[..text.len().min(50)],
+                            text.len()
+                        );
+                        Ok(text)
+                    }
+                    Ok(_) => {
+                        eprintln!("[DEBUG] [window.rs] CLIPBOARD is also empty");
+                        Err(AppError::NotFound("No text selected".to_string()))
+                    }
+                    Err(e) => {
+                        eprintln!("[DEBUG] [window.rs] Failed to read CLIPBOARD: {}", e);
+                        Err(AppError::NotFound("No text selected".to_string()))
+                    }
+                }
+            }
+        }
+    }
+
+    #[cfg(not(any(target_os = "macos", target_os = "linux")))]
     {
         Err(AppError::Unsupported(
-            "Text capture only supported on macOS".to_string(),
+            "Text capture only supported on macOS and Linux".to_string(),
         ))
     }
 }
@@ -314,6 +479,56 @@ fn set_clipboard_sync(text: &str) -> Result<(), AppError> {
         .map_err(|e| AppError::External(format!("Failed to write clipboard: {}", e)))?;
 
     Ok(())
+}
+
+#[cfg(target_os = "linux")]
+fn get_clipboard_sync() -> Result<String, AppError> {
+    use arboard::Clipboard;
+
+    eprintln!("[DEBUG] [window.rs] get_clipboard_sync: Creating clipboard");
+
+    let mut clipboard = Clipboard::new().map_err(|e| {
+        eprintln!(
+            "[DEBUG] [window.rs] get_clipboard_sync: Failed to create clipboard: {}",
+            e
+        );
+        AppError::External(format!("Failed to access clipboard: {}", e))
+    })?;
+
+    let result = clipboard.get_text();
+    eprintln!(
+        "[DEBUG] [window.rs] get_clipboard_sync: get_text() result: {:?}",
+        result
+    );
+
+    result.map_err(|e| AppError::External(format!("Failed to read clipboard: {}", e)))
+}
+
+#[cfg(target_os = "linux")]
+#[allow(dead_code)]
+fn set_clipboard_sync(text: &str) -> Result<(), AppError> {
+    use arboard::Clipboard;
+
+    eprintln!(
+        "[DEBUG] [window.rs] set_clipboard_sync: Setting text: {:?}",
+        &text[..text.len().min(50)]
+    );
+
+    let mut clipboard = Clipboard::new().map_err(|e| {
+        eprintln!(
+            "[DEBUG] [window.rs] set_clipboard_sync: Failed to create clipboard: {}",
+            e
+        );
+        AppError::External(format!("Failed to access clipboard: {}", e))
+    })?;
+
+    let result = clipboard.set_text(text.to_string());
+    eprintln!(
+        "[DEBUG] [window.rs] set_clipboard_sync: set_text() result: {:?}",
+        result
+    );
+
+    result.map_err(|e| AppError::External(format!("Failed to write clipboard: {}", e)))
 }
 
 #[cfg(test)]

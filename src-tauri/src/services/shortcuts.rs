@@ -258,9 +258,19 @@ pub fn register_quick_add_shortcut(app: &AppHandle) -> Result<(), ShortcutError>
 
     app.global_shortcut()
         .on_shortcut(shortcut, move |_app, _shortcut, event| {
+            eprintln!(
+                "[DEBUG] [shortcuts.rs] Quick Add shortcut triggered, state: {:?}",
+                event.state
+            );
             if event.state == ShortcutState::Pressed {
+                eprintln!("[DEBUG] [shortcuts.rs] Calling show_quick_add_window()");
                 if let Err(e) = window::show_quick_add_window(&app_handle) {
-                    eprintln!("Failed to show quick add window from shortcut: {}", e);
+                    eprintln!(
+                        "[ERROR] Failed to show quick add window from shortcut: {}",
+                        e
+                    );
+                } else {
+                    eprintln!("[DEBUG] [shortcuts.rs] show_quick_add_window() returned Ok");
                 }
             }
         })
@@ -372,7 +382,7 @@ mod tests {
     #[test]
     fn test_shortcut_constants() {
         assert_eq!(SHORTCUT_SEARCH, "CmdOrCtrl+Shift+S");
-        assert_eq!(SHORTCUT_QUICK_ADD, "CmdOrCtrl+Shift+A");
+        assert_eq!(SHORTCUT_QUICK_ADD, "Super+Alt+A");
     }
 
     #[test]

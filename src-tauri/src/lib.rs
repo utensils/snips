@@ -120,6 +120,15 @@ pub fn run() {
                 // Don't fail app startup if shortcuts fail to register
             }
 
+            // Initialize D-Bus service (Linux only, fail-safe)
+            #[cfg(target_os = "linux")]
+            {
+                let app_handle = app.handle().clone();
+                tauri::async_runtime::spawn(async move {
+                    services::dbus_service::init_dbus_service(app_handle).await;
+                });
+            }
+
             // Set up menu event handlers
             app.on_menu_event(move |app, event| match event.id().as_ref() {
                 "search" => {

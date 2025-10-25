@@ -4,16 +4,14 @@
   "version": "0.1.1",
   "identifier": "io.utensils.snips",
   "build": {
-    "beforeDevCommand": "bun run dev",
+    "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1420",
-    "beforeBuildCommand": "bun run build",
+    "beforeBuildCommand": "npm run build",
     "frontendDist": "../dist"
   },
   "plugins": {
     "sql": {
-      "preload": [
-        "sqlite:snips.db"
-      ]
+      "preload": ["sqlite:snips.db"]
     }
   },
   "app": {
