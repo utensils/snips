@@ -57,7 +57,11 @@
             "core:window:allow-center",
             "core:window:allow-set-focus",
             "core:window:allow-unminimize",
-            "core:window:default"
+            "core:window:default",
+            "core:event:allow-listen",
+            "core:event:allow-emit",
+            "core:event:allow-emit-to",
+            "core:event:default"
           ]
         }
       ]
