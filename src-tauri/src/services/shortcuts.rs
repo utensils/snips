@@ -382,7 +382,7 @@ mod tests {
     #[test]
     fn test_shortcut_constants() {
         assert_eq!(SHORTCUT_SEARCH, "CmdOrCtrl+Shift+S");
-        assert_eq!(SHORTCUT_QUICK_ADD, "Super+Alt+A");
+        assert_eq!(SHORTCUT_QUICK_ADD, "CmdOrCtrl+Shift+A");
     }
 
     #[test]

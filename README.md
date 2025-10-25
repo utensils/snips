@@ -7,7 +7,7 @@ A snippet management tool designed for building LLM prompts from reusable text s
 
 Quick access via global shortcuts enables efficient search, selection, and combination of multiple snippets.
 
-**Platforms**: macOS (primary), Linux (beta)
+**Platforms**: macOS (primary), Linux (active development - see limitations below)
 
 [![Frontend Checks](https://github.com/utensils/snips/actions/workflows/frontend-checks.yml/badge.svg)](https://github.com/utensils/snips/actions/workflows/frontend-checks.yml)
 [![Backend Checks](https://github.com/utensils/snips/actions/workflows/backend-checks.yml/badge.svg)](https://github.com/utensils/snips/actions/workflows/backend-checks.yml)
@@ -20,7 +20,8 @@ Quick access via global shortcuts enables efficient search, selection, and combi
 
 - **Quick Snippet Capture**: Global shortcut to save selected text as a snippet
   - macOS: `Cmd+Shift+A` (simulates Cmd+C)
-  - Linux: `Super+Alt+A` - Reads PRIMARY selection (auto-updated on text selection)
+  - Linux X11: `Ctrl+Shift+A` (reads PRIMARY selection)
+  - Linux Wayland: Global shortcuts unsupported - use D-Bus keybinds (see setup below)
 - **Fast Search**: Full-text search with FTS5 across snippet names and tags
 - **Multi-Select**: Select and combine multiple snippets into a single clipboard entry
 - **Usage Analytics**: Track snippet usage frequency to improve search ranking
@@ -74,6 +75,13 @@ sudo dnf install webkit2gtk4.1-devel
   bind = SUPER ALT, A, exec, dbus-send --session --type=method_call --dest=io.utensils.snips /io/utensils/snips io.utensils.snips.ShowQuickAdd
   ```
 - Available methods: `ShowQuickAdd`, `ShowSearch`, `ToggleSearch`, `ShowManagement`
+
+**⚠️ Linux Limitations (Active Development):**
+
+- **Wayland**: Global shortcuts DO NOT WORK due to compositor restrictions. Must use D-Bus method calls from window manager keybinds (see above).
+- **Window Focus**: Unreliable on some compositors. Windows may not always receive focus/appear on top.
+- **Tray Badge**: Selection count badge not supported on most Linux system trays.
+- **Tested**: Hyprland on Wayland. Other DEs/compositors may have additional issues.
 
 ### Installation
 
