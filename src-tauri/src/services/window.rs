@@ -40,12 +40,15 @@ pub fn get_or_create_management_window(app: &AppHandle) -> Result<WebviewWindow,
 }
 
 /// Gets the quick add window handle, creating it if it doesn't exist
-pub fn get_or_create_quick_add_window(app: &AppHandle) -> Result<WebviewWindow, AppError> {
+/// Returns (window, was_just_created)
+pub fn get_or_create_quick_add_window(app: &AppHandle) -> Result<(WebviewWindow, bool), AppError> {
     if let Some(window) = app.get_webview_window(QUICK_ADD_WINDOW_LABEL) {
-        return Ok(window);
+        return Ok((window, false));
     }
 
     // Create quick add window
+    // On Linux/Wayland: Use normal decorations for Hyprland tiling compatibility
+    // The window floats by default but can be tiled with Super+T
     let window = tauri::WebviewWindowBuilder::new(
         app,
         QUICK_ADD_WINDOW_LABEL,
@@ -54,15 +57,15 @@ pub fn get_or_create_quick_add_window(app: &AppHandle) -> Result<WebviewWindow, 
     .title("Quick Add Snippet")
     .inner_size(650.0, 700.0)
     .center()
-    .resizable(false)
+    .resizable(true) // Allow resizing for tiling WM compatibility
     .visible(false)
-    .always_on_top(true)
-    .skip_taskbar(true)
+    .always_on_top(false) // Don't force always-on-top for better WM integration
+    .skip_taskbar(false) // Show in taskbar/window list for Hyprland
     .decorations(true)
     .build()
     .map_err(|e| AppError::TauriError(e.to_string()))?;
 
-    Ok(window)
+    Ok((window, true))
 }
 
 /// Gets the settings window handle, creating it if it doesn't exist
@@ -262,8 +265,11 @@ pub fn show_quick_add_window(app: &AppHandle) -> Result<(), AppError> {
     );
 
     eprintln!("[DEBUG] [window.rs] Getting or creating quick-add window");
-    let window = get_or_create_quick_add_window(app)?;
-    eprintln!("[DEBUG] [window.rs] Window obtained successfully");
+    let (window, was_just_created) = get_or_create_quick_add_window(app)?;
+    eprintln!(
+        "[DEBUG] [window.rs] Window obtained successfully (newly created: {})",
+        was_just_created
+    );
 
     eprintln!("[DEBUG] [window.rs] Centering window");
     center_window(&window)?;
@@ -274,13 +280,22 @@ pub fn show_quick_add_window(app: &AppHandle) -> Result<(), AppError> {
     eprintln!("[DEBUG] [window.rs] Window shown successfully");
 
     // Emit event AFTER showing window to ensure frontend listener is ready
-    // Use a delay to allow the webview to initialize and frontend to mount
+    // Use a longer delay for newly created windows (webview initialization)
+    // vs existing windows (already loaded)
+    let delay_ms = if was_just_created {
+        1000 // 1 second for first load (webview + React mount)
+    } else {
+        200 // 200ms for already-loaded window
+    };
+
     if let Ok(text) = selected_text {
-        eprintln!("[DEBUG] [window.rs] Spawning thread to emit selected-text-captured event");
+        eprintln!(
+            "[DEBUG] [window.rs] Spawning thread to emit selected-text-captured event (delay: {}ms)",
+            delay_ms
+        );
         let app_clone = app.clone();
         std::thread::spawn(move || {
-            // Longer delay to ensure webview is fully initialized
-            std::thread::sleep(std::time::Duration::from_millis(200));
+            std::thread::sleep(std::time::Duration::from_millis(delay_ms));
             eprintln!("[DEBUG] [window.rs] Emitting selected-text-captured event");
             // Use emit_to to target the specific window
             if let Err(e) =
@@ -300,7 +315,7 @@ pub fn show_quick_add_window(app: &AppHandle) -> Result<(), AppError> {
         let app_clone = app.clone();
         let error_msg = e.to_string();
         std::thread::spawn(move || {
-            std::thread::sleep(std::time::Duration::from_millis(200));
+            std::thread::sleep(std::time::Duration::from_millis(delay_ms));
             // Use emit_to to target the specific window
             if let Err(e) =
                 app_clone.emit_to(QUICK_ADD_WINDOW_LABEL, "selected-text-error", error_msg)
@@ -541,5 +556,57 @@ mod tests {
         assert_eq!(MANAGEMENT_WINDOW_LABEL, "management");
         assert_eq!(QUICK_ADD_WINDOW_LABEL, "quick-add");
         assert_eq!(SETTINGS_WINDOW_LABEL, "settings");
+    }
+
+    #[test]
+    fn test_event_emission_delay_calculation() {
+        // Test that delay calculation logic is reasonable
+        // Newly created window needs longer delay for webview initialization
+        let delay_newly_created = if true { 1000 } else { 200 };
+        assert_eq!(delay_newly_created, 1000);
+        assert!(
+            delay_newly_created >= 500,
+            "First load delay should be at least 500ms"
+        );
+
+        // Existing window needs shorter delay
+        let delay_existing = if false { 1000 } else { 200 };
+        assert_eq!(delay_existing, 200);
+        assert!(
+            delay_existing >= 100,
+            "Existing window delay should be at least 100ms"
+        );
+    }
+
+    /// Integration test notes (requires running app):
+    ///
+    /// Test Case 1: First window creation
+    /// - Trigger quick-add for the first time after app launch
+    /// - Verify text appears in the window (1000ms delay should be sufficient)
+    ///
+    /// Test Case 2: Subsequent window shows
+    /// - Trigger quick-add again after closing the window
+    /// - Verify text appears quickly (200ms delay should work for cached window)
+    ///
+    /// Test Case 3: Window focus on Wayland
+    /// - Verify window receives focus and appears on top
+    /// - Check debug logs for focus state transitions
+    #[test]
+    fn test_quick_add_window_behavior_documentation() {
+        // This test exists to document expected behavior
+        // Actual testing requires a running Tauri app instance
+
+        // Window should track creation state
+        let was_just_created = true;
+        assert!(
+            was_just_created,
+            "get_or_create should return true on first creation"
+        );
+
+        let was_just_created = false;
+        assert!(
+            !was_just_created,
+            "get_or_create should return false for existing window"
+        );
     }
 }

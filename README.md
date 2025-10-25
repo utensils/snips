@@ -70,11 +70,21 @@ sudo dnf install webkit2gtk4.1-devel
 **Hyprland/Wayland Integration:**
 
 - D-Bus service available at `io.utensils.snips` for window manager integration
-- Add to your Hyprland config for Quick Add keybind:
+- Add to your Hyprland config (`~/.config/hypr/hyprland.conf`):
+
   ```conf
+  # Quick Add keybind
   bind = SUPER ALT, A, exec, dbus-send --session --type=method_call --dest=io.utensils.snips /io/utensils/snips io.utensils.snips.ShowQuickAdd
+
+  # Window rules for Quick Add dialog
+  # Float by default, but allow manual tiling with Super+T
+  windowrulev2 = float, title:^(Quick Add Snippet)$
+  windowrulev2 = center, title:^(Quick Add Snippet)$
+  windowrulev2 = size 650 700, title:^(Quick Add Snippet)$
   ```
-- Available methods: `ShowQuickAdd`, `ShowSearch`, `ToggleSearch`, `ShowManagement`
+
+- Available D-Bus methods: `ShowQuickAdd`, `ShowSearch`, `ToggleSearch`, `ShowManagement`
+- The Quick Add window floats by default but can be tiled with `Super+T` or dragged to tile zones
 
 **⚠️ Linux Limitations (Active Development):**
 

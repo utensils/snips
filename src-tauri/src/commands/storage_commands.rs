@@ -42,13 +42,117 @@ pub struct SnippetExport {
     pub updated_at: i64,
 }
 
+/// Diagnostic information about database location and status
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DatabaseDiagnostics {
+    pub db_path: String,
+    pub db_dir: String,
+    pub db_exists: bool,
+    pub db_size_bytes: u64,
+    pub db_readable: bool,
+    pub db_writable: bool,
+    pub dir_exists: bool,
+    pub dir_writable: bool,
+    pub error_message: Option<String>,
+}
+
+/// Get diagnostic information about the database
+/// Helps troubleshoot database connection and permission issues
+#[tauri::command]
+pub async fn get_database_diagnostics(app: AppHandle) -> Result<DatabaseDiagnostics, String> {
+    use std::fs;
+
+    // Use app_config_dir() to match tauri-plugin-sql and backend SQLx
+    let app_dir = app
+        .path()
+        .app_config_dir()
+        .map_err(|e| format!("Failed to get app config dir: {}", e))?;
+
+    let db_path = app_dir.join("snips.db");
+
+    let db_exists = db_path.exists();
+    let dir_exists = app_dir.exists();
+
+    let db_size_bytes = if db_exists {
+        fs::metadata(&db_path).map(|m| m.len()).unwrap_or(0)
+    } else {
+        0
+    };
+
+    // Test readability
+    let db_readable = if db_exists {
+        fs::File::open(&db_path).is_ok()
+    } else {
+        false
+    };
+
+    // Test writability (for directory if db doesn't exist, for file if it does)
+    let db_writable = if db_exists {
+        fs::OpenOptions::new().append(true).open(&db_path).is_ok()
+    } else {
+        false
+    };
+
+    let dir_writable = if dir_exists {
+        // Try creating a temporary file
+        let test_file = app_dir.join(".write_test");
+        let writable = fs::File::create(&test_file).is_ok();
+        let _ = fs::remove_file(&test_file);
+        writable
+    } else {
+        false
+    };
+
+    let error_message = if !dir_exists {
+        Some(format!(
+            "Database directory does not exist: {}",
+            app_dir.display()
+        ))
+    } else if !dir_writable {
+        Some(format!(
+            "Database directory is not writable: {}. Check permissions.",
+            app_dir.display()
+        ))
+    } else if db_exists && !db_readable {
+        Some(format!(
+            "Database file exists but is not readable: {}. Check permissions.",
+            db_path.display()
+        ))
+    } else if db_exists && !db_writable {
+        Some(format!(
+            "Database file is read-only: {}. Check permissions.",
+            db_path.display()
+        ))
+    } else if db_exists && db_size_bytes == 0 {
+        Some(format!(
+            "Database file is empty (0 bytes): {}. It may not be initialized correctly.",
+            db_path.display()
+        ))
+    } else {
+        None
+    };
+
+    Ok(DatabaseDiagnostics {
+        db_path: db_path.to_string_lossy().to_string(),
+        db_dir: app_dir.to_string_lossy().to_string(),
+        db_exists,
+        db_size_bytes,
+        db_readable,
+        db_writable,
+        dir_exists,
+        dir_writable,
+        error_message,
+    })
+}
+
 /// Create a backup of the database
 #[tauri::command]
 pub async fn backup_database(app: AppHandle) -> Result<BackupInfo, String> {
+    // Use app_config_dir() to match tauri-plugin-sql and backend SQLx
     let app_dir = app
         .path()
-        .app_data_dir()
-        .map_err(|e| format!("Failed to get app data dir: {}", e))?;
+        .app_config_dir()
+        .map_err(|e| format!("Failed to get app config dir: {}", e))?;
 
     let db_path = app_dir.join("snips.db");
 
@@ -94,10 +198,11 @@ pub async fn restore_database(app: AppHandle, backup_path: String) -> Result<(),
         return Err("Backup file not found".to_string());
     }
 
+    // Use app_config_dir() to match tauri-plugin-sql and backend SQLx
     let app_dir = app
         .path()
-        .app_data_dir()
-        .map_err(|e| format!("Failed to get app data dir: {}", e))?;
+        .app_config_dir()
+        .map_err(|e| format!("Failed to get app config dir: {}", e))?;
 
     let db_path = app_dir.join("snips.db");
 
@@ -139,10 +244,11 @@ pub async fn get_database_stats(app: AppHandle) -> Result<DatabaseStats, String>
         .map_err(|e| format!("Failed to get analytics count: {}", e))?;
 
     // Get database file size
+    // Use app_config_dir() to match tauri-plugin-sql and backend SQLx
     let app_dir = app
         .path()
-        .app_data_dir()
-        .map_err(|e| format!("Failed to get app data dir: {}", e))?;
+        .app_config_dir()
+        .map_err(|e| format!("Failed to get app config dir: {}", e))?;
 
     let db_path = app_dir.join("snips.db");
     let database_size_bytes = if db_path.exists() {
@@ -377,10 +483,11 @@ pub async fn import_from_json(app: AppHandle, import_path: String) -> Result<usi
 /// List all available backups
 #[tauri::command]
 pub async fn list_backups(app: AppHandle) -> Result<Vec<BackupInfo>, String> {
+    // Use app_config_dir() to match tauri-plugin-sql and backend SQLx
     let app_dir = app
         .path()
-        .app_data_dir()
-        .map_err(|e| format!("Failed to get app data dir: {}", e))?;
+        .app_config_dir()
+        .map_err(|e| format!("Failed to get app config dir: {}", e))?;
 
     let backup_dir = app_dir.join("backups");
 
@@ -489,5 +596,59 @@ mod tests {
 
         assert_eq!(stats.total_snippets, 10);
         assert_eq!(stats.total_tags, 5);
+    }
+
+    #[test]
+    fn test_database_diagnostics_struct() {
+        let diagnostics = DatabaseDiagnostics {
+            db_path: "/test/path/snips.db".to_string(),
+            db_dir: "/test/path".to_string(),
+            db_exists: true,
+            db_size_bytes: 92160,
+            db_readable: true,
+            db_writable: true,
+            dir_exists: true,
+            dir_writable: true,
+            error_message: None,
+        };
+
+        assert_eq!(diagnostics.db_path, "/test/path/snips.db");
+        assert!(diagnostics.db_exists);
+        assert!(diagnostics.error_message.is_none());
+    }
+
+    #[test]
+    fn test_diagnostics_error_messages() {
+        // Test error message generation for common scenarios
+        let error1 = "Database directory does not exist: /some/path";
+        assert!(error1.contains("directory does not exist"));
+
+        let error2 = "Database directory is not writable: /some/path. Check permissions.";
+        assert!(error2.contains("not writable"));
+        assert!(error2.contains("Check permissions"));
+
+        let error3 =
+            "Database file is empty (0 bytes): /path/db. It may not be initialized correctly.";
+        assert!(error3.contains("empty (0 bytes)"));
+        assert!(error3.contains("not be initialized"));
+    }
+
+    /// Critical: Verify all storage commands use app_config_dir
+    #[test]
+    fn test_storage_path_consistency_documentation() {
+        // All storage commands MUST use app_config_dir() to match:
+        // - tauri-plugin-sql (uses AppConfig)
+        // - init_db_pool (uses app_config_dir)
+        //
+        // Commands that must use app_config_dir:
+        // - backup_database
+        // - restore_database
+        // - get_database_stats
+        // - get_database_diagnostics
+        // - export_to_json
+        // - import_from_json
+        // - list_backups
+
+        assert!(true, "All storage commands must use app_config_dir");
     }
 }

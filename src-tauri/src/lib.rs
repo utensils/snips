@@ -189,6 +189,7 @@ pub fn run() {
             commands::storage_commands::backup_database,
             commands::storage_commands::restore_database,
             commands::storage_commands::get_database_stats,
+            commands::storage_commands::get_database_diagnostics,
             commands::storage_commands::export_to_json,
             commands::storage_commands::import_from_json,
             commands::storage_commands::list_backups,

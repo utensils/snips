@@ -170,6 +170,8 @@ export function QuickAddDialog({ onSuccess, onError }: QuickAddDialogProps): Rea
         .map((t) => t.trim())
         .filter((t) => t.length > 0);
 
+      // Creating snippet with parsed tags
+
       await createSnippet({
         name: name.trim(),
         content: selectedText,
@@ -183,10 +185,14 @@ export function QuickAddDialog({ onSuccess, onError }: QuickAddDialogProps): Rea
       const window = getCurrentWindow();
       await window.close();
     } catch (err) {
+      console.error('[QuickAdd] Failed to create snippet:', err);
       const errorMessage = err instanceof Error ? err.message : 'Failed to create snippet';
       setError(errorMessage);
       setIsSaving(false);
       onError?.(errorMessage);
+    } finally {
+      // Ensure isSaving is reset even if something unexpected happens
+      setIsSaving(false);
     }
   };
 
@@ -330,13 +336,7 @@ export function QuickAddDialog({ onSuccess, onError }: QuickAddDialogProps): Rea
             <Button type="submit" variant="primary" fullWidth disabled={isSaving}>
               {isSaving ? 'Saving...' : 'Save Snippet'}
             </Button>
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={handleCancel}
-              disabled={isSaving}
-              fullWidth
-            >
+            <Button type="button" variant="secondary" onClick={handleCancel} fullWidth>
               Cancel
             </Button>
           </div>
