@@ -1,6 +1,6 @@
 import { invoke } from '@tauri-apps/api/core';
 import { type CSSProperties, type ReactElement, useCallback, useEffect, useRef } from 'react';
-import { FixedSizeList as List } from 'react-window';
+import { List, type ListImperativeAPI } from 'react-window';
 
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -22,6 +22,18 @@ interface SearchResultItemProps {
   isSelected: boolean;
   isFocused: boolean;
   onToggleSelect: () => void;
+  style: CSSProperties;
+}
+
+interface VirtualizedRowCustomProps {
+  searchResults: SearchResult[];
+  isSelected: (id: number) => boolean;
+  toggleSelected: (id: number) => void;
+  focusedIndex: number;
+}
+
+interface VirtualizedRowProps extends VirtualizedRowCustomProps {
+  index: number;
   style: CSSProperties;
 }
 
@@ -114,6 +126,32 @@ function SearchResultItem({
 }
 
 /**
+ * Wrapper component for virtualized row
+ */
+function VirtualizedRow({
+  index,
+  style,
+  searchResults,
+  isSelected,
+  toggleSelected,
+  focusedIndex,
+}: VirtualizedRowProps): ReactElement | null {
+  const result = searchResults[index];
+  if (!result) {
+    return null;
+  }
+  return (
+    <SearchResultItem
+      result={result}
+      isSelected={isSelected(result.id)}
+      isFocused={index === focusedIndex}
+      onToggleSelect={() => toggleSelected(result.id)}
+      style={style}
+    />
+  );
+}
+
+/**
  * SearchOverlay component - main search interface
  *
  * Features:
@@ -139,7 +177,7 @@ export function SearchOverlay(): ReactElement {
 
   const { toast, showToast } = useToast();
   const inputRef = useRef<HTMLInputElement>(null);
-  const listRef = useRef<List>(null);
+  const listRef = useRef<ListImperativeAPI>(null);
 
   const debouncedQuery = useDebounce(searchQuery, 300);
 
@@ -236,7 +274,7 @@ export function SearchOverlay(): ReactElement {
   // Scroll to focused item
   useEffect(() => {
     if (listRef.current && searchResults.length > 0) {
-      listRef.current.scrollToItem(focusedIndex, 'smart');
+      listRef.current.scrollToRow({ index: focusedIndex, align: 'smart' });
     }
   }, [focusedIndex, searchResults.length]);
 
@@ -312,30 +350,20 @@ export function SearchOverlay(): ReactElement {
 
         {/* Results list */}
         {showResults && (
-          <List
-            ref={listRef}
-            height={listHeight}
-            itemCount={searchResults.length}
-            itemSize={ITEM_HEIGHT}
-            width="100%"
+          <List<VirtualizedRowCustomProps>
+            listRef={listRef}
+            defaultHeight={listHeight}
+            rowCount={searchResults.length}
+            rowHeight={ITEM_HEIGHT}
             overscanCount={3}
-          >
-            {({ index, style }: { index: number; style: CSSProperties }) => {
-              const result = searchResults[index];
-              if (!result) {
-                return null;
-              }
-              return (
-                <SearchResultItem
-                  result={result}
-                  isSelected={isSelected(result.id)}
-                  isFocused={index === focusedIndex}
-                  onToggleSelect={() => toggleSelected(result.id)}
-                  style={style}
-                />
-              );
+            rowComponent={VirtualizedRow}
+            rowProps={{
+              searchResults,
+              isSelected,
+              toggleSelected,
+              focusedIndex,
             }}
-          </List>
+          />
         )}
 
         {/* Initial state with keyboard shortcuts help */}

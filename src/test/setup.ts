@@ -10,6 +10,13 @@ afterEach(() => {
   localStorage.clear();
 });
 
+// Mock ResizeObserver for react-window 2.x
+global.ResizeObserver = class ResizeObserver {
+  observe(): void {}
+  unobserve(): void {}
+  disconnect(): void {}
+};
+
 // Mock Tauri API
 vi.mock('@tauri-apps/api/tauri', () => ({
   invoke: vi.fn(),

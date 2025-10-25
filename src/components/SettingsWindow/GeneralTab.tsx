@@ -1,3 +1,4 @@
+import { platform } from '@tauri-apps/plugin-os';
 import { type ReactElement, useEffect, useState } from 'react';
 
 import { Button } from '@/components/ui/Button';
@@ -16,10 +17,12 @@ export function GeneralTab(): ReactElement {
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [currentPlatform, setCurrentPlatform] = useState<string>('');
 
-  // Load settings on mount
+  // Load settings and platform on mount
   useEffect(() => {
     loadSettings();
+    setCurrentPlatform(platform());
   }, []);
 
   const loadSettings = async (): Promise<void> => {
@@ -155,32 +158,36 @@ export function GeneralTab(): ReactElement {
         </div>
       </Card>
 
-      {/* Startup Behavior */}
-      <Card className="p-6">
-        <div className="space-y-4">
-          <div>
-            <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-1">Startup</h3>
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              Configure application startup behavior
-            </p>
-          </div>
+      {/* Startup Behavior - macOS/Windows only */}
+      {currentPlatform !== 'linux' && (
+        <Card className="p-6">
+          <div className="space-y-4">
+            <div>
+              <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-1">Startup</h3>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                Configure application startup behavior
+              </p>
+            </div>
 
-          <div className="space-y-3">
-            <label className="flex items-center space-x-3">
-              <input
-                type="checkbox"
-                className="w-4 h-4 text-blue-600 rounded border-gray-300 dark:border-gray-600 focus:ring-blue-500 dark:focus:ring-blue-400 dark:bg-gray-700"
-                defaultChecked={true}
-                disabled
-              />
-              <span className="text-sm text-gray-700 dark:text-gray-300">Launch at login</span>
-            </label>
-            <p className="text-xs text-gray-500 dark:text-gray-400 ml-7">
-              Configure this in System Preferences → Users & Groups → Login Items
-            </p>
+            <div className="space-y-3">
+              <label className="flex items-center space-x-3">
+                <input
+                  type="checkbox"
+                  className="w-4 h-4 text-blue-600 rounded border-gray-300 dark:border-gray-600 focus:ring-blue-500 dark:focus:ring-blue-400 dark:bg-gray-700"
+                  defaultChecked={true}
+                  disabled
+                />
+                <span className="text-sm text-gray-700 dark:text-gray-300">Launch at login</span>
+              </label>
+              <p className="text-xs text-gray-500 dark:text-gray-400 ml-7">
+                {currentPlatform === 'macos'
+                  ? 'Configure this in System Preferences → Users & Groups → Login Items'
+                  : 'Configure this in Windows Settings → Apps → Startup'}
+              </p>
+            </div>
           </div>
-        </div>
-      </Card>
+        </Card>
+      )}
     </div>
   );
 }
