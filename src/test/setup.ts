@@ -28,4 +28,15 @@ vi.mock('@tauri-apps/api/window', () => ({
     hide: vi.fn(),
     show: vi.fn(),
   })),
+  getCurrentWindow: vi.fn(() => ({
+    label: 'main',
+    close: vi.fn(),
+    hide: vi.fn(),
+    show: vi.fn(),
+  })),
+}));
+
+vi.mock('@tauri-apps/api/event', () => ({
+  listen: vi.fn(() => Promise.resolve(() => {})),
+  emit: vi.fn(() => Promise.resolve()),
 }));

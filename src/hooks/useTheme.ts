@@ -1,32 +1,49 @@
+import { listen } from '@tauri-apps/api/event';
 import { useEffect, useState } from 'react';
+
+import { getSettings } from '@/lib/api';
+import type { AppSettings } from '@/types/settings';
 
 export type Theme = 'light' | 'dark' | 'system';
 
 /**
  * Hook to manage application theme with system preference detection
+ * Theme is stored in the database and synchronized across all windows
  *
- * @returns Current theme and function to set theme
+ * @returns Current theme and isDark state
  */
-export function useTheme(): { theme: Theme; setTheme: (theme: Theme) => void; isDark: boolean } {
-  const [theme, setThemeState] = useState<Theme>(() => {
-    // Try to load saved theme preference
-    const saved = localStorage.getItem('snips-theme') as Theme | null;
-    return saved || 'system';
-  });
-
+export function useTheme(): { theme: Theme; isDark: boolean } {
+  const [theme, setThemeState] = useState<Theme>('system');
   const [isDark, setIsDark] = useState<boolean>(() => {
-    if (theme === 'system') {
-      return window.matchMedia('(prefers-color-scheme: dark)').matches;
-    }
-    return theme === 'dark';
+    return window.matchMedia('(prefers-color-scheme: dark)').matches;
   });
 
-  // Update theme and persist to localStorage
-  const setTheme = (newTheme: Theme): void => {
-    setThemeState(newTheme);
-    localStorage.setItem('snips-theme', newTheme);
-    return;
-  };
+  // Load theme from settings on mount
+  useEffect(() => {
+    const loadTheme = async (): Promise<void> => {
+      try {
+        const settings = await getSettings();
+        setThemeState(settings.theme);
+      } catch (error) {
+        console.error('Failed to load theme from settings:', error);
+        // Fall back to system theme on error
+        setThemeState('system');
+      }
+    };
+
+    loadTheme();
+  }, []);
+
+  // Listen for settings changes from other windows or manual updates
+  useEffect(() => {
+    const unlisten = listen<AppSettings>('settings-changed', (event) => {
+      setThemeState(event.payload.theme);
+    });
+
+    return () => {
+      unlisten.then((unlistenFn) => unlistenFn());
+    };
+  }, []);
 
   // Apply theme to document
   useEffect(() => {
@@ -65,5 +82,5 @@ export function useTheme(): { theme: Theme; setTheme: (theme: Theme) => void; is
     return undefined;
   }, [theme]);
 
-  return { theme, setTheme, isDark };
+  return { theme, isDark };
 }
