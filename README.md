@@ -20,8 +20,12 @@ Quick access via global shortcuts enables efficient search, selection, and combi
 
 - **Quick Snippet Capture**: Global shortcut to save selected text as a snippet
   - macOS: `Cmd+Shift+A` (simulates Cmd+C)
-  - Linux X11: `Ctrl+Shift+A` (reads PRIMARY selection)
+  - Windows/Linux X11: `Ctrl+Shift+A` (reads PRIMARY selection on Linux)
   - Linux Wayland: Global shortcuts unsupported - use D-Bus keybinds (see setup below)
+- **Fast Search & Selection**: Global shortcut to search and select snippets
+  - macOS: `Cmd+Shift+S`
+  - Windows/Linux: `Ctrl+Shift+S`
+  - Linux Wayland: Use D-Bus method `ShowSearch` or `ToggleSearch` (see setup below)
 - **Fast Search**: Full-text search with FTS5 across snippet names and tags
 - **Multi-Select**: Select and combine multiple snippets into a single clipboard entry
 - **Usage Analytics**: Track snippet usage frequency to improve search ranking
@@ -73,8 +77,11 @@ sudo dnf install webkit2gtk4.1-devel
 - Add to your Hyprland config (`~/.config/hypr/hyprland.conf`):
 
   ```conf
-  # Quick Add keybind
-  bind = SUPER ALT, A, exec, dbus-send --session --type=method_call --dest=io.utensils.snips /io/utensils/snips io.utensils.snips.ShowQuickAdd
+  # Search keybind (Ctrl+Shift+S equivalent)
+  bind = CTRL SHIFT, S, exec, dbus-send --session --type=method_call --dest=io.utensils.snips /io/utensils/snips io.utensils.snips.ToggleSearch
+
+  # Quick Add keybind (Ctrl+Shift+A equivalent)
+  bind = CTRL SHIFT, A, exec, dbus-send --session --type=method_call --dest=io.utensils.snips /io/utensils/snips io.utensils.snips.ShowQuickAdd
 
   # Window rules for Quick Add dialog
   # Float by default, but allow manual tiling with Super+T
@@ -84,11 +91,15 @@ sudo dnf install webkit2gtk4.1-devel
   ```
 
 - Available D-Bus methods: `ShowQuickAdd`, `ShowSearch`, `ToggleSearch`, `ShowManagement`
+- **Note**: `ToggleSearch` is recommended for the search keybind as it matches the macOS/X11 toggle behavior
 - The Quick Add window floats by default but can be tiled with `Super+T` or dragged to tile zones
 
 **⚠️ Linux Limitations (Active Development):**
 
-- **Wayland**: Global shortcuts DO NOT WORK due to compositor restrictions. Must use D-Bus method calls from window manager keybinds (see above).
+- **Wayland Global Shortcuts**: DO NOT WORK due to compositor security restrictions.
+  - X11: `Ctrl+Shift+S` and `Ctrl+Shift+A` work natively via Tauri's global shortcut plugin
+  - Wayland: Must use D-Bus method calls bound to window manager keybinds (see Hyprland integration above)
+  - All platforms use the same internal shortcut constants (`CmdOrCtrl+Shift+S/A`) for consistency
 - **Window Focus**: Unreliable on some compositors. Windows may not always receive focus/appear on top.
 - **Tray Badge**: Selection count badge not supported on most Linux system trays.
 - **Tested**: Hyprland on Wayland. Other DEs/compositors may have additional issues.
