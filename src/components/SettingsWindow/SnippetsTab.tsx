@@ -7,6 +7,7 @@ import { Checkbox } from '@/components/ui/Checkbox';
 import { Input } from '@/components/ui/Input';
 import { Spinner } from '@/components/ui/Spinner';
 import { getAllSnippets, deleteSnippet } from '@/lib/api';
+import { formatUserError, logError } from '@/lib/errorHandler';
 import type { Snippet } from '@/types';
 import type { ExportData } from '@/types/storage';
 
@@ -168,6 +169,9 @@ export function SnippetsTab(): React.ReactElement {
    * Confirms deletion of snippets
    */
   const confirmDelete = async (): Promise<void> => {
+    const count = deleteConfirmDialog.snippetIds.length;
+    const context = count === 1 ? 'snippet' : `${count} snippets`;
+
     try {
       // Delete all snippets
       await Promise.all(deleteConfirmDialog.snippetIds.map((id) => deleteSnippet(id)));
@@ -185,8 +189,11 @@ export function SnippetsTab(): React.ReactElement {
       // Reload snippets
       await loadSnippets();
     } catch (err) {
-      console.error('Failed to delete snippets:', err);
-      setError(err instanceof Error ? err.message : 'Failed to delete snippets');
+      logError(err, `Delete ${context}`);
+      setError(formatUserError(err, context));
+
+      // Keep dialog open so user can see what failed
+      // Don't clear selection in case they want to retry
     }
   };
 

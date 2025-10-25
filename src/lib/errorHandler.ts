@@ -140,3 +140,112 @@ export function handleError(
 
   return parsed;
 }
+
+/**
+ * Converts technical errors into user-friendly messages
+ *
+ * @param error - The error object or string
+ * @param context - Optional context about what was being done (e.g., "snippet", "2 snippets")
+ * @returns User-friendly error message
+ */
+export function formatUserError(error: unknown, context?: string): string {
+  const errorMessage = error instanceof Error ? error.message : String(error);
+
+  // Database-specific errors
+  if (errorMessage.includes('no such column') || errorMessage.includes('no such table')) {
+    return 'There was a problem with the database structure. Please restart the application. If the problem persists, check the application logs or reset your database.';
+  }
+
+  if (errorMessage.includes('UNIQUE constraint failed')) {
+    if (errorMessage.includes('snippets.name')) {
+      return 'A snippet with this name already exists. Please choose a different name.';
+    }
+    return 'This item already exists. Please choose a different name or identifier.';
+  }
+
+  if (errorMessage.includes('database is locked')) {
+    return 'The database is currently locked. Please close any other instances of the application and try again.';
+  }
+
+  if (errorMessage.includes('readonly database') || errorMessage.includes('attempt to write')) {
+    return 'The database is read-only. Please check file permissions and ensure the application has write access.';
+  }
+
+  if (errorMessage.includes('FOREIGN KEY constraint failed')) {
+    return 'Cannot complete this operation because it would break data relationships. Please try again or contact support.';
+  }
+
+  if (errorMessage.includes('NOT NULL constraint failed')) {
+    const fieldMatch = errorMessage.match(/snippets\.(\w+)/);
+    if (fieldMatch) {
+      const field = fieldMatch[1];
+      return `The ${field} field is required and cannot be empty.`;
+    }
+    return 'A required field is missing. Please fill in all required information.';
+  }
+
+  // Network/IPC errors
+  if (errorMessage.includes('Failed to invoke') || errorMessage.includes('IPC')) {
+    return 'Communication with the application failed. Please restart the application and try again.';
+  }
+
+  // Permission errors
+  if (errorMessage.includes('permission denied') || errorMessage.includes('EACCES')) {
+    return 'Permission denied. Please check that you have the necessary permissions to perform this action.';
+  }
+
+  // File system errors
+  if (errorMessage.includes('ENOENT') || errorMessage.includes('no such file')) {
+    return 'A required file was not found. Please restart the application.';
+  }
+
+  if (errorMessage.includes('ENOSPC')) {
+    return 'Not enough disk space. Please free up some space and try again.';
+  }
+
+  // Context-specific messages with actionable advice
+  if (context) {
+    const isDelete =
+      errorMessage.toLowerCase().includes('delete') || context.toLowerCase().includes('delet');
+    const isCreate =
+      errorMessage.toLowerCase().includes('create') || context.toLowerCase().includes('creat');
+    const isUpdate =
+      errorMessage.toLowerCase().includes('update') || context.toLowerCase().includes('updat');
+
+    const action = isDelete ? 'delete' : isCreate ? 'create' : isUpdate ? 'update' : 'modify';
+    const advice = getActionableAdvice(errorMessage);
+
+    return `Failed to ${action} ${context}. ${advice}`;
+  }
+
+  // Fallback to original message if it's reasonably user-friendly
+  if (
+    errorMessage.length < 150 &&
+    !errorMessage.includes('Error:') &&
+    !errorMessage.includes('at ')
+  ) {
+    return errorMessage;
+  }
+
+  // Last resort generic message
+  return `An unexpected error occurred${context ? ` while working with ${context}` : ''}. Please try again or restart the application.`;
+}
+
+/**
+ * Provides actionable advice based on error type
+ */
+function getActionableAdvice(errorMessage: string): string {
+  if (errorMessage.includes('database') || errorMessage.includes('SQL')) {
+    return 'Try restarting the application.';
+  }
+  if (errorMessage.includes('permission') || errorMessage.includes('access')) {
+    return 'Check file permissions.';
+  }
+  if (errorMessage.includes('space') || errorMessage.includes('ENOSPC')) {
+    return 'Free up disk space and try again.';
+  }
+  if (errorMessage.includes('locked')) {
+    return 'Close other instances of the application.';
+  }
+  return 'Please try again.';
+}
