@@ -84,7 +84,7 @@ sudo dnf install webkit2gtk4.1-devel
   bind = CTRL SHIFT, A, exec, dbus-send --session --type=method_call --dest=io.utensils.snips /io/utensils/snips io.utensils.snips.ShowQuickAdd
 
   # Window rules for Quick Add dialog
-  # Float by default, but allow manual tiling with Super+T
+  # Always floats (non-resizable)
   windowrulev2 = float, title:^(Quick Add Snippet)$
   windowrulev2 = center, title:^(Quick Add Snippet)$
   windowrulev2 = size 650 700, title:^(Quick Add Snippet)$
@@ -92,7 +92,7 @@ sudo dnf install webkit2gtk4.1-devel
 
 - Available D-Bus methods: `ShowQuickAdd`, `ShowSearch`, `ToggleSearch`, `ShowManagement`
 - **Note**: `ToggleSearch` is recommended for the search keybind as it matches the macOS/X11 toggle behavior
-- The Quick Add window floats by default but can be tiled with `Super+T` or dragged to tile zones
+- The Quick Add window always floats (non-resizable, like the search window)
 
 **⚠️ Linux Limitations (Active Development):**
 
