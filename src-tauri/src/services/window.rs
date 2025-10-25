@@ -74,7 +74,8 @@ pub fn get_or_create_settings_window(app: &AppHandle) -> Result<WebviewWindow, A
 /// Shows a window and brings it to focus
 pub fn show_window(window: &WebviewWindow) -> Result<(), AppError> {
     eprintln!(
-        "[DEBUG] [window.rs] show_window: is_visible={:?}, is_focused={:?}",
+        "[DEBUG] [window.rs] show_window({}): is_visible={:?}, is_focused={:?}",
+        window.label(),
         window.is_visible().unwrap_or(false),
         window.is_focused().unwrap_or(false)
     );
@@ -92,7 +93,8 @@ pub fn show_window(window: &WebviewWindow) -> Result<(), AppError> {
         .map_err(|e| AppError::TauriError(e.to_string()))?;
 
     eprintln!(
-        "[DEBUG] [window.rs] show_window: after show() - is_visible={:?}, is_focused={:?}",
+        "[DEBUG] [window.rs] show_window({}): after show() - is_visible={:?}, is_focused={:?}",
+        window.label(),
         window.is_visible().unwrap_or(false),
         window.is_focused().unwrap_or(false)
     );
@@ -107,13 +109,17 @@ pub fn show_window(window: &WebviewWindow) -> Result<(), AppError> {
         .map_err(|e| AppError::TauriError(e.to_string()))?;
 
     eprintln!(
-        "[DEBUG] [window.rs] show_window: after set_focus() - is_visible={:?}, is_focused={:?}",
+        "[DEBUG] [window.rs] show_window({}): after set_focus() - is_visible={:?}, is_focused={:?}",
+        window.label(),
         window.is_visible().unwrap_or(false),
         window.is_focused().unwrap_or(false)
     );
 
     // Try unminimize (X11 only, but harmless on Wayland)
-    eprintln!("[DEBUG] [window.rs] show_window: calling unminimize()");
+    eprintln!(
+        "[DEBUG] [window.rs] show_window({}): calling unminimize()",
+        window.label()
+    );
     let _ = window.unminimize();
 
     // Multiple focus attempts for Wayland compositors that may ignore first attempts
@@ -123,12 +129,15 @@ pub fn show_window(window: &WebviewWindow) -> Result<(), AppError> {
             std::thread::sleep(std::time::Duration::from_millis(10));
             if let Err(e) = window.set_focus() {
                 eprintln!(
-                    "[DEBUG] [window.rs] show_window: focus retry {} failed: {}",
-                    attempt, e
+                    "[DEBUG] [window.rs] show_window({}): focus retry {} failed: {}",
+                    window.label(),
+                    attempt,
+                    e
                 );
             } else {
                 eprintln!(
-                    "[DEBUG] [window.rs] show_window: focus retry {} succeeded",
+                    "[DEBUG] [window.rs] show_window({}): focus retry {} succeeded",
+                    window.label(),
                     attempt
                 );
             }
@@ -136,7 +145,8 @@ pub fn show_window(window: &WebviewWindow) -> Result<(), AppError> {
     }
 
     eprintln!(
-        "[DEBUG] [window.rs] show_window: final state - is_visible={:?}, is_focused={:?}",
+        "[DEBUG] [window.rs] show_window({}): final state - is_visible={:?}, is_focused={:?}",
+        window.label(),
         window.is_visible().unwrap_or(false),
         window.is_focused().unwrap_or(false)
     );
