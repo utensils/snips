@@ -203,8 +203,11 @@ pub fn hide_search_window(app: &AppHandle) -> Result<(), AppError> {
 }
 
 pub fn hide_quick_add_window(app: &AppHandle) -> Result<(), AppError> {
+    eprintln!("[DEBUG] [window.rs] hide_quick_add_window() called");
     let window = get_quick_add_window(app)?;
+    eprintln!("[DEBUG] [window.rs] Quick-add window obtained, hiding...");
     hide_window(&window)?;
+    eprintln!("[DEBUG] [window.rs] Quick-add window hidden successfully");
     Ok(())
 }
 

@@ -191,7 +191,11 @@ export function QuickAddDialog({ onSuccess, onError }: QuickAddDialogProps): Rea
       setNameError('');
 
       // Hide the window (don't close it - it's pre-created)
-      await invoke('hide_quick_add_window');
+      try {
+        await invoke('hide_quick_add_window');
+      } catch (err) {
+        console.error('[QuickAdd] Failed to hide window:', err);
+      }
     } catch (err) {
       console.error('[QuickAdd] Failed to create snippet:', err);
       const errorMessage = err instanceof Error ? err.message : 'Failed to create snippet';
@@ -216,7 +220,11 @@ export function QuickAddDialog({ onSuccess, onError }: QuickAddDialogProps): Rea
     setIsLoading(true); // Reset to loading state for next open
 
     // Hide the window (don't close it - it's pre-created)
-    await invoke('hide_quick_add_window');
+    try {
+      await invoke('hide_quick_add_window');
+    } catch (err) {
+      console.error('[QuickAdd] Failed to hide window on cancel:', err);
+    }
   };
 
   // Handle escape key
