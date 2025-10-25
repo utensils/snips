@@ -28,6 +28,19 @@
         "resizable": false,
         "center": true,
         "label": "search"
+      },
+      {
+        "title": "Quick Add Snippet",
+        "width": 650,
+        "height": 700,
+        "visible": false,
+        "decorations": true,
+        "transparent": false,
+        "alwaysOnTop": true,
+        "skipTaskbar": true,
+        "resizable": false,
+        "center": true,
+        "label": "quick-add"
       }
     ],
     "security": {

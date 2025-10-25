@@ -39,33 +39,11 @@ pub fn get_or_create_management_window(app: &AppHandle) -> Result<WebviewWindow,
     Ok(window)
 }
 
-/// Gets the quick add window handle, creating it if it doesn't exist
-/// Returns (window, was_just_created)
-pub fn get_or_create_quick_add_window(app: &AppHandle) -> Result<(WebviewWindow, bool), AppError> {
-    if let Some(window) = app.get_webview_window(QUICK_ADD_WINDOW_LABEL) {
-        return Ok((window, false));
-    }
-
-    // Create quick add window
-    // On Linux/Wayland: Use normal decorations for Hyprland tiling compatibility
-    // The window floats by default but can be tiled with Super+T
-    let window = tauri::WebviewWindowBuilder::new(
-        app,
-        QUICK_ADD_WINDOW_LABEL,
-        tauri::WebviewUrl::App("index.html".into()),
-    )
-    .title("Quick Add Snippet")
-    .inner_size(650.0, 700.0)
-    .center()
-    .resizable(true) // Allow resizing for tiling WM compatibility
-    .visible(false)
-    .always_on_top(false) // Don't force always-on-top for better WM integration
-    .skip_taskbar(false) // Show in taskbar/window list for Hyprland
-    .decorations(true)
-    .build()
-    .map_err(|e| AppError::TauriError(e.to_string()))?;
-
-    Ok((window, true))
+/// Gets the quick add window handle
+/// Window is pre-created in tauri.conf.json for better stability
+pub fn get_quick_add_window(app: &AppHandle) -> Result<WebviewWindow, AppError> {
+    app.get_webview_window(QUICK_ADD_WINDOW_LABEL)
+        .ok_or_else(|| AppError::NotFound("Quick add window not found".into()))
 }
 
 /// Gets the settings window handle, creating it if it doesn't exist
@@ -264,12 +242,9 @@ pub fn show_quick_add_window(app: &AppHandle) -> Result<(), AppError> {
         }
     );
 
-    eprintln!("[DEBUG] [window.rs] Getting or creating quick-add window");
-    let (window, was_just_created) = get_or_create_quick_add_window(app)?;
-    eprintln!(
-        "[DEBUG] [window.rs] Window obtained successfully (newly created: {})",
-        was_just_created
-    );
+    eprintln!("[DEBUG] [window.rs] Getting quick-add window");
+    let window = get_quick_add_window(app)?;
+    eprintln!("[DEBUG] [window.rs] Window obtained successfully");
 
     eprintln!("[DEBUG] [window.rs] Centering window");
     center_window(&window)?;
@@ -280,13 +255,8 @@ pub fn show_quick_add_window(app: &AppHandle) -> Result<(), AppError> {
     eprintln!("[DEBUG] [window.rs] Window shown successfully");
 
     // Emit event AFTER showing window to ensure frontend listener is ready
-    // Use a longer delay for newly created windows (webview initialization)
-    // vs existing windows (already loaded)
-    let delay_ms = if was_just_created {
-        1000 // 1 second for first load (webview + React mount)
-    } else {
-        200 // 200ms for already-loaded window
-    };
+    // Window is pre-created at startup, so use shorter delay
+    let delay_ms = 200;
 
     if let Ok(text) = selected_text {
         eprintln!(
