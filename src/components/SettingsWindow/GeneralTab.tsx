@@ -169,13 +169,13 @@ export function GeneralTab(): ReactElement {
             <label className="flex items-center space-x-3">
               <input
                 type="checkbox"
-                className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                className="w-4 h-4 text-blue-600 rounded border-gray-300 dark:border-gray-600 focus:ring-blue-500 dark:focus:ring-blue-400 dark:bg-gray-700"
                 defaultChecked={true}
                 disabled
               />
               <span className="text-sm text-gray-700 dark:text-gray-300">Launch at login</span>
             </label>
-            <p className="text-xs text-gray-500 dark:text-gray-500 ml-7">
+            <p className="text-xs text-gray-500 dark:text-gray-400 ml-7">
               Configure this in System Preferences → Users & Groups → Login Items
             </p>
           </div>

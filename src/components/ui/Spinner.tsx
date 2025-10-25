@@ -17,7 +17,7 @@ const sizeClasses: Record<SpinnerSize, string> = {
  */
 export function Spinner({ size = 'md', className = '', ...props }: SpinnerProps): ReactElement {
   const classes = [
-    'animate-spin rounded-full border-blue-600 border-t-transparent',
+    'animate-spin rounded-full border-blue-600 dark:border-blue-400 border-t-transparent',
     sizeClasses[size],
     className,
   ]

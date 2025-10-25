@@ -73,7 +73,7 @@ export function StorageMigrationWizard({
                 className={`w-8 h-8 rounded-full flex items-center justify-center ${
                   step >= 1
                     ? 'bg-blue-500 text-white'
-                    : 'bg-gray-200 dark:bg-gray-700 text-gray-500'
+                    : 'bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400'
                 }`}
               >
                 1
@@ -86,7 +86,7 @@ export function StorageMigrationWizard({
                 className={`w-8 h-8 rounded-full flex items-center justify-center ${
                   step >= 2
                     ? 'bg-blue-500 text-white'
-                    : 'bg-gray-200 dark:bg-gray-700 text-gray-500'
+                    : 'bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400'
                 }`}
               >
                 2
@@ -99,7 +99,7 @@ export function StorageMigrationWizard({
                 className={`w-8 h-8 rounded-full flex items-center justify-center ${
                   step >= 3
                     ? 'bg-blue-500 text-white'
-                    : 'bg-gray-200 dark:bg-gray-700 text-gray-500'
+                    : 'bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400'
                 }`}
               >
                 3

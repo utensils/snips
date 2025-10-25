@@ -304,7 +304,7 @@ function DuplicateGroupCard({
                   <p className="text-sm text-gray-700 dark:text-gray-300 mt-2 line-clamp-2">
                     {snippet.content}
                   </p>
-                  <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
+                  <div className="flex items-center gap-4 mt-2 text-xs text-gray-500 dark:text-gray-400">
                     <span>Created {new Date(snippet.created_at).toLocaleDateString()}</span>
                     <span>Updated {new Date(snippet.updated_at).toLocaleDateString()}</span>
                     {snippet.tags && snippet.tags.length > 0 && (

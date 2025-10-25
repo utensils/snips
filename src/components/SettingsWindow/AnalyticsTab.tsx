@@ -266,7 +266,7 @@ export function AnalyticsTab(): ReactElement {
                 <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
                   Enable analytics tracking
                 </span>
-                <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                   Track snippet usage to improve search ranking and provide insights. All data stays
                   on your device.
                 </p>
@@ -406,7 +406,7 @@ export function AnalyticsTab(): ReactElement {
                 <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
                   Export Analytics
                 </p>
-                <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                   Download all analytics data as JSON
                 </p>
               </div>
@@ -420,7 +420,7 @@ export function AnalyticsTab(): ReactElement {
                 <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
                   Clear Old Data
                 </p>
-                <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                   Delete analytics older than 30 days
                 </p>
               </div>
@@ -438,7 +438,7 @@ export function AnalyticsTab(): ReactElement {
                 <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
                   Clear All Data
                 </p>
-                <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                   Permanently delete all analytics data
                 </p>
               </div>
@@ -471,7 +471,7 @@ function SummaryCard({ title, value, icon, description }: SummaryCardProps): Rea
         <div className="flex-1 min-w-0">
           <p className="text-sm font-medium text-gray-600 dark:text-gray-400">{title}</p>
           <p className="text-2xl font-semibold text-gray-900 dark:text-gray-100 mt-1">{value}</p>
-          <p className="text-xs text-gray-500 dark:text-gray-500 mt-1 truncate">{description}</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 truncate">{description}</p>
         </div>
       </div>
     </Card>
@@ -523,7 +523,7 @@ function MostUsedSnippetRow({
         </span>
         <div className="flex-1 min-w-0">
           <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{name}</p>
-          <p className="text-xs text-gray-500 dark:text-gray-500">Last used {lastUsedText}</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400">Last used {lastUsedText}</p>
         </div>
       </div>
       <div className="flex items-center space-x-2">
@@ -562,7 +562,7 @@ function RecentActivityRow({ name, usedAt }: RecentActivityRowProps): ReactEleme
       <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate flex-1 min-w-0">
         {name}
       </p>
-      <p className="text-xs text-gray-500 dark:text-gray-500 flex-shrink-0 ml-4">
+      <p className="text-xs text-gray-500 dark:text-gray-400 flex-shrink-0 ml-4">
         {formatRelativeTime(usedAt)}
       </p>
     </div>
@@ -676,6 +676,13 @@ function SnippetDrillDown({ snippetDetails, onBack }: SnippetDrillDownProps): Re
     ? formatRelativeTime(snippetDetails.last_used)
     : 'Never';
 
+  // Calculate days since first use (computed with useState initializer to satisfy purity rules)
+  // The initializer function is only called once, capturing the current time at component creation
+  const [currentTime] = useState(() => Date.now());
+  const daysSinceFirstUse = snippetDetails.first_used
+    ? Math.floor((currentTime - snippetDetails.first_used) / (1000 * 60 * 60 * 24))
+    : 0;
+
   return (
     <div className="space-y-6">
       {/* Header with back button */}
@@ -755,7 +762,7 @@ function SnippetDrillDown({ snippetDetails, onBack }: SnippetDrillDownProps): Re
                   Days Since First Use
                 </span>
                 <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                  {Math.floor((Date.now() - snippetDetails.first_used) / (1000 * 60 * 60 * 24))}
+                  {daysSinceFirstUse}
                 </span>
               </div>
             )}
@@ -765,13 +772,7 @@ function SnippetDrillDown({ snippetDetails, onBack }: SnippetDrillDownProps): Re
                   Average Uses Per Day
                 </span>
                 <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                  {(
-                    snippetDetails.usage_count /
-                    Math.max(
-                      1,
-                      Math.floor((Date.now() - snippetDetails.first_used) / (1000 * 60 * 60 * 24))
-                    )
-                  ).toFixed(2)}
+                  {(snippetDetails.usage_count / Math.max(1, daysSinceFirstUse)).toFixed(2)}
                 </span>
               </div>
             )}

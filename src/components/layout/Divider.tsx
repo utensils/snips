@@ -31,7 +31,7 @@ export function Divider({
 }: DividerProps): ReactElement {
   if (orientation === 'vertical') {
     const classes = [
-      'inline-block w-px bg-gray-200 self-stretch',
+      'inline-block w-px bg-gray-200 dark:bg-gray-700 self-stretch',
       spacingClasses.vertical[spacing],
       className,
     ]
@@ -41,7 +41,11 @@ export function Divider({
     return <div className={classes} role="separator" aria-orientation="vertical" />;
   }
 
-  const classes = ['border-t border-gray-200', spacingClasses.horizontal[spacing], className]
+  const classes = [
+    'border-t border-gray-200 dark:border-gray-700',
+    spacingClasses.horizontal[spacing],
+    className,
+  ]
     .filter(Boolean)
     .join(' ');
 

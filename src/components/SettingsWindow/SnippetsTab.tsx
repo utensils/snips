@@ -534,7 +534,7 @@ function SnippetListItem({
               {snippet.description}
             </p>
           )}
-          <div className="flex items-center gap-4 mt-2 text-xs text-gray-500 dark:text-gray-500">
+          <div className="flex items-center gap-4 mt-2 text-xs text-gray-500 dark:text-gray-400">
             <span>Updated {formatRelativeTime(snippet.updated_at)}</span>
             {snippet.tags && snippet.tags.length > 0 && (
               <span className="truncate">Tags: {snippet.tags.join(', ')}</span>
