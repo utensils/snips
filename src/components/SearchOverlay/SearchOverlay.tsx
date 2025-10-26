@@ -2,6 +2,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { type CSSProperties, type ReactElement, useCallback, useEffect, useRef } from 'react';
 import { List, type ListImperativeAPI } from 'react-window';
 
+import { WindowScaffold } from '@/components/adwaita';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -50,15 +51,15 @@ function SearchResultItem({
   // Determine background color based on selection and focus state
   const getBackgroundClass = (): string => {
     if (isSelected && isFocused) {
-      return 'bg-blue-100 dark:bg-blue-900/40 border-l-4 border-l-blue-500 dark:border-l-blue-400';
+      return 'bg-accent/20 border-l-3 border-accent';
     }
     if (isSelected) {
-      return 'bg-blue-50 dark:bg-blue-900/20 border-l-4 border-l-blue-400 dark:border-l-blue-500';
+      return 'bg-accent/12 border-l-3 border-accent/70';
     }
     if (isFocused) {
-      return 'bg-gray-100 dark:bg-gray-800';
+      return 'bg-surface-2/70';
     }
-    return 'bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800/50';
+    return 'hover:bg-surface-1/60';
   };
 
   return (
@@ -66,7 +67,7 @@ function SearchResultItem({
       style={style}
       onClick={onToggleSelect}
       className={`
-        px-4 py-3 border-b border-gray-200 dark:border-gray-700 transition-all duration-150 cursor-pointer
+        px-4 py-3 border-b border-border/60 transition-colors duration-150 cursor-pointer
         ${getBackgroundClass()}
       `}
       role="button"
@@ -74,10 +75,10 @@ function SearchResultItem({
       aria-label={`${isSelected ? 'Deselect' : 'Select'} snippet: ${result.name}`}
     >
       <div className="flex items-start gap-3">
-        <div className="flex items-center justify-center w-5 h-5 mt-0.5">
+        <div className="mt-0.5 flex h-5 w-5 items-center justify-center">
           {isSelected ? (
             <svg
-              className="w-5 h-5 text-blue-600 dark:text-blue-400"
+              className="h-5 w-5 text-accent"
               fill="currentColor"
               viewBox="0 0 20 20"
               xmlns="http://www.w3.org/2000/svg"
@@ -89,13 +90,13 @@ function SearchResultItem({
               />
             </svg>
           ) : (
-            <div className="w-5 h-5 border-2 border-gray-300 dark:border-gray-600 rounded-full" />
+            <div className="h-5 w-5 rounded-full border-2 border-border-soft" />
           )}
         </div>
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1 flex-wrap">
+          <div className="mb-1 flex flex-wrap items-center gap-2">
             <h3
-              className={`font-medium truncate ${isSelected ? 'text-blue-900 dark:text-blue-100' : 'text-gray-900 dark:text-gray-100'}`}
+              className={`truncate font-medium ${isSelected ? 'text-accent-foreground' : 'text-foreground'}`}
             >
               {result.name}
             </h3>
@@ -115,7 +116,7 @@ function SearchResultItem({
             )}
           </div>
           <p
-            className={`text-sm line-clamp-2 ${isSelected ? 'text-blue-800 dark:text-blue-200' : 'text-gray-600 dark:text-gray-300'}`}
+            className={`line-clamp-2 text-sm ${isSelected ? 'text-accent-foreground' : 'text-muted-foreground'}`}
           >
             {result.content}
           </p>
@@ -326,126 +327,133 @@ export function SearchOverlay(): ReactElement {
   const allSelected = hasResults && searchResults.every((r) => selectedSnippets.has(r.id));
 
   return (
-    <div className="flex flex-col h-screen bg-white dark:bg-gray-900 animate-fade-in-scale">
-      {/* Header */}
-      <div
-        className="flex-shrink-0 p-4 border-b border-gray-200 dark:border-gray-700 animate-slide-down"
-        data-tauri-drag-region
-      >
-        <div className="flex items-center gap-3">
-          <div className="flex-1">
-            <Input
-              ref={inputRef}
-              type="text"
-              placeholder="Search snippets..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              fullWidth
-              autoFocus
-              aria-label="Search snippets"
-            />
+    <WindowScaffold
+      variant="overlay"
+      size="wide"
+      fullHeight
+      contentClassName="flex h-full flex-col overflow-hidden rounded-[28px] border border-border-soft bg-surface-1/80 shadow-xl shadow-black/15 supports-[backdrop-filter]:backdrop-blur-2xl motion-safe:animate-fade-in-scale"
+    >
+      <div className="flex h-full flex-col">
+        {/* Header */}
+        <div
+          className="flex-shrink-0 border-b border-border-soft bg-surface-2/70 p-4 supports-[backdrop-filter]:backdrop-blur"
+          data-tauri-drag-region
+        >
+          <div className="flex items-center gap-3">
+            <div className="flex-1">
+              <Input
+                ref={inputRef}
+                type="text"
+                placeholder="Search snippets..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                fullWidth
+                autoFocus
+                aria-label="Search snippets"
+              />
+            </div>
+            <Button variant="ghost" size="sm" onClick={handleClose} aria-label="Close search">
+              Esc
+            </Button>
           </div>
-          <Button variant="ghost" size="sm" onClick={handleClose} aria-label="Close">
-            Esc
-          </Button>
+
+          {/* Selected count indicator and actions */}
+          {hasResults && (
+            <div className="mt-3 flex flex-col items-start justify-between gap-2 sm:flex-row sm:items-center motion-safe:animate-slide-down">
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">
+                  {selectedSnippets.size > 0
+                    ? `${selectedSnippets.size} of ${searchResults.length} selected`
+                    : `${searchResults.length} result${searchResults.length === 1 ? '' : 's'}`}
+                </span>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Button size="sm" variant="ghost" onClick={handleSelectAll}>
+                  {allSelected ? 'Deselect All' : 'Select All'}
+                </Button>
+                {selectedSnippets.size > 0 && (
+                  <>
+                    <Button size="sm" variant="ghost" onClick={() => clearSelected()}>
+                      Clear
+                    </Button>
+                    <Button size="sm" onClick={handleCopy}>
+                      Copy ({selectedSnippets.size})
+                    </Button>
+                  </>
+                )}
+              </div>
+            </div>
+          )}
         </div>
 
-        {/* Selected count indicator and actions */}
-        {hasResults && (
-          <div className="mt-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 animate-slide-down">
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-600 dark:text-gray-400">
-                {selectedSnippets.size > 0
-                  ? `${selectedSnippets.size} of ${searchResults.length} selected`
-                  : `${searchResults.length} result${searchResults.length === 1 ? '' : 's'}`}
-              </span>
+        {/* Content */}
+        <div className="flex flex-1 flex-col overflow-hidden bg-surface-0/80">
+          {/* Loading state */}
+          {isSearching && (
+            <div className="flex h-32 items-center justify-center text-muted-foreground">
+              <Spinner size="lg" />
             </div>
-            <div className="flex flex-wrap gap-2">
-              <Button size="sm" variant="ghost" onClick={handleSelectAll}>
-                {allSelected ? 'Deselect All' : 'Select All'}
-              </Button>
-              {selectedSnippets.size > 0 && (
-                <>
-                  <Button size="sm" variant="ghost" onClick={() => clearSelected()}>
-                    Clear
-                  </Button>
-                  <Button size="sm" onClick={handleCopy}>
-                    Copy ({selectedSnippets.size})
-                  </Button>
-                </>
-              )}
+          )}
+
+          {/* Empty state */}
+          {showEmpty && (
+            <div className="flex h-32 flex-col items-center justify-center text-muted-foreground">
+              <p className="text-lg font-medium">No snippets found</p>
+              <p className="mt-1 text-sm">Try a different search term</p>
             </div>
-          </div>
-        )}
-      </div>
+          )}
 
-      {/* Content */}
-      <div className="flex-1 overflow-hidden">
-        {/* Loading state */}
-        {isSearching && (
-          <div className="flex items-center justify-center h-32">
-            <Spinner size="lg" />
-          </div>
-        )}
+          {/* Results list */}
+          {showResults && (
+            <List<VirtualizedRowCustomProps>
+              listRef={listRef}
+              defaultHeight={listHeight}
+              rowCount={searchResults.length}
+              rowHeight={ITEM_HEIGHT}
+              overscanCount={3}
+              rowComponent={VirtualizedRow}
+              rowProps={{
+                searchResults,
+                isSelected,
+                toggleSelected,
+                focusedIndex,
+              }}
+            />
+          )}
 
-        {/* Empty state */}
-        {showEmpty && (
-          <div className="flex flex-col items-center justify-center h-32 text-gray-500 dark:text-gray-400">
-            <p className="text-lg font-medium">No snippets found</p>
-            <p className="text-sm mt-1">Try a different search term</p>
-          </div>
-        )}
-
-        {/* Results list */}
-        {showResults && (
-          <List<VirtualizedRowCustomProps>
-            listRef={listRef}
-            defaultHeight={listHeight}
-            rowCount={searchResults.length}
-            rowHeight={ITEM_HEIGHT}
-            overscanCount={3}
-            rowComponent={VirtualizedRow}
-            rowProps={{
-              searchResults,
-              isSelected,
-              toggleSelected,
-              focusedIndex,
-            }}
-          />
-        )}
-
-        {/* Initial state with keyboard shortcuts help */}
-        {!isSearching && !debouncedQuery.trim() && (
-          <div className="flex flex-col items-center justify-center p-8 text-gray-500 dark:text-gray-400">
-            <p className="text-lg mb-4">Start typing to search snippets</p>
-            <div className="space-y-2 text-sm">
-              <div className="flex items-center gap-2">
-                <KeyboardShortcutHint keys={['↑', '↓']} />
-                <span>Navigate results</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <KeyboardShortcutHint keys={['Space']} />
-                <span>Toggle selection</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <KeyboardShortcutHint keys={['⌘/Ctrl', 'A']} />
-                <span>Select all</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <KeyboardShortcutHint keys={['Enter']} />
-                <span>Copy selected</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <KeyboardShortcutHint keys={['Esc']} />
-                <span>Close window</span>
+          {/* Initial state with keyboard shortcuts help */}
+          {!isSearching && !debouncedQuery.trim() && (
+            <div className="flex flex-col items-center justify-center p-8 text-muted-foreground">
+              <p className="mb-4 text-lg">Start typing to search snippets</p>
+              <div className="space-y-2 text-sm">
+                <div className="flex items-center gap-2">
+                  <KeyboardShortcutHint keys={['↑', '↓']} />
+                  <span>Navigate results</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <KeyboardShortcutHint keys={['Space']} />
+                  <span>Toggle selection</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <KeyboardShortcutHint keys={['⌘/Ctrl', 'A']} />
+                  <span>Select all</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <KeyboardShortcutHint keys={['Enter']} />
+                  <span>Copy selected</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <KeyboardShortcutHint keys={['Esc']} />
+                  <span>Close window</span>
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
       {/* Toast notification */}
       {toast && <Toast {...toast} />}
-    </div>
+    </WindowScaffold>
   );
 }

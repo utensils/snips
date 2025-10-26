@@ -98,6 +98,8 @@ html[data-platform='windows'] {
 
 .window-shell {
   height: 100%;
+  background-color: hsl(var(--surface-0));
+  color: hsl(var(--foreground));
 }
 
 .window-drag-region {
@@ -106,6 +108,7 @@ html[data-platform='windows'] {
 
 .window-content {
   height: 100%;
+  background-color: transparent;
 }
 
 html[data-chrome='frameless'] .window-shell {
@@ -236,6 +239,18 @@ body {
 
 .animate-shake {
   animation: shake 0.4s ease-in-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-slide-up,
+  .animate-slide-down,
+  .animate-fade-in,
+  .animate-fade-in-scale,
+  .animate-shake,
+  .motion-safe\:animate-slide-down,
+  .motion-safe\:animate-fade-in-scale {
+    animation: none !important;
+  }
 }
 
 /* Transition utilities */

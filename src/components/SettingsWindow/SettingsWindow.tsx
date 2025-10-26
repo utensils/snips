@@ -1,6 +1,6 @@
 import { type ReactElement, useMemo, useState } from 'react';
 
-import { HeaderBar, Pane, SegmentedButtons } from '@/components/adwaita';
+import { HeaderBar, Pane, SegmentedButtons, WindowScaffold } from '@/components/adwaita';
 
 import { AnalyticsTab } from './AnalyticsTab';
 import { GeneralTab } from './GeneralTab';
@@ -86,10 +86,14 @@ export function SettingsWindow(): ReactElement {
   };
 
   return (
-    <div className="flex h-screen w-screen flex-col bg-background px-4 py-4 text-foreground md:px-6 md:py-6">
+    <WindowScaffold
+      size="wide"
+      fullHeight
+      contentClassName="flex h-full flex-col gap-4 text-foreground"
+    >
       <HeaderBar title="Settings" subtitle={activeTabDefinition?.label} />
 
-      <div className="mt-4 flex flex-1 gap-4 overflow-hidden">
+      <div className="flex flex-1 gap-4 overflow-hidden rounded-3xl border border-border-soft bg-surface-1/85 p-4 shadow-inner shadow-black/5 supports-[backdrop-filter]:backdrop-blur-md md:p-6">
         <aside className="hidden w-64 shrink-0 md:flex">
           <Pane padding="sm" className="h-full overflow-y-auto">
             <nav className="flex flex-col gap-1">
@@ -120,7 +124,7 @@ export function SettingsWindow(): ReactElement {
           <div className="flex-1 overflow-y-auto pb-6">{renderContent()}</div>
         </section>
       </div>
-    </div>
+    </WindowScaffold>
   );
 }
 

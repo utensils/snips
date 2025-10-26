@@ -122,12 +122,99 @@ function normalizeHsl(value: string): string | null {
   return null;
 }
 
+function parseHslTriplet(value: string): [number, number, number] | null {
+  const parts = value.trim().replace(/\s+/g, ' ').split(' ').filter(Boolean);
+
+  if (parts.length < 3) {
+    return null;
+  }
+
+  const [huePart, saturationPart, lightnessPart] = parts as [string, string, string];
+  const hue = Number.parseFloat(huePart);
+  const saturation = Number.parseFloat(saturationPart.replace('%', '')) / 100;
+  const lightness = Number.parseFloat(lightnessPart.replace('%', '')) / 100;
+
+  if ([hue, saturation, lightness].some((component) => !Number.isFinite(component))) {
+    return null;
+  }
+
+  return [hue, Math.min(Math.max(saturation, 0), 1), Math.min(Math.max(lightness, 0), 1)];
+}
+
+function hslToRgbTriplet(h: number, s: number, l: number): [number, number, number] {
+  const hue = ((h % 360) + 360) % 360;
+  const chroma = (1 - Math.abs(2 * l - 1)) * s;
+  const hueSegment = hue / 60;
+  const secondary = chroma * (1 - Math.abs((hueSegment % 2) - 1));
+
+  let r1 = 0;
+  let g1 = 0;
+  let b1 = 0;
+
+  if (hueSegment >= 0 && hueSegment < 1) {
+    r1 = chroma;
+    g1 = secondary;
+  } else if (hueSegment < 2) {
+    r1 = secondary;
+    g1 = chroma;
+  } else if (hueSegment < 3) {
+    g1 = chroma;
+    b1 = secondary;
+  } else if (hueSegment < 4) {
+    g1 = secondary;
+    b1 = chroma;
+  } else if (hueSegment < 5) {
+    r1 = secondary;
+    b1 = chroma;
+  } else {
+    r1 = chroma;
+    b1 = secondary;
+  }
+
+  const match = l - chroma / 2;
+  const to255 = (value: number): number => Math.round((value + match) * 255);
+
+  return [to255(r1), to255(g1), to255(b1)];
+}
+
+function srgbToLinear(value: number): number {
+  const normalized = value / 255;
+  return normalized <= 0.03928 ? normalized / 12.92 : Math.pow((normalized + 0.055) / 1.055, 2.4);
+}
+
+function relativeLuminance([r, g, b]: [number, number, number]): number {
+  const rLinear = srgbToLinear(r);
+  const gLinear = srgbToLinear(g);
+  const bLinear = srgbToLinear(b);
+  return 0.2126 * rLinear + 0.7152 * gLinear + 0.0722 * bLinear;
+}
+
+function contrastRatio(l1: number, l2: number): number {
+  const [maxLum, minLum] = l1 > l2 ? [l1, l2] : [l2, l1];
+  return (maxLum + 0.05) / (minLum + 0.05);
+}
+
+function luminanceFromCssValue(value: string | null | undefined): number | null {
+  if (!value) {
+    return null;
+  }
+
+  const parsed = parseHslTriplet(value);
+  if (!parsed) {
+    return null;
+  }
+
+  const rgb = hslToRgbTriplet(parsed[0], parsed[1], parsed[2]);
+  return relativeLuminance(rgb);
+}
+
 export function applyOmarchyPalette(palette: ThemePalette, wallpaperSrc?: string | null): void {
   const root = document.documentElement;
   root.dataset.omarchyTheme = palette.name;
   root.dataset.omarchyLuminance = palette.is_light ? 'light' : 'dark';
 
   const entries = Object.entries(COLOR_MAPPING) as Array<[string, string[]]>;
+  const appliedValues = new Map<string, string>();
   entries.forEach(([cssVar, keys]) => {
     const colorKey = keys.find((key) => palette.colors[key] !== undefined);
     if (!colorKey) {
@@ -141,6 +228,7 @@ export function applyOmarchyPalette(palette: ThemePalette, wallpaperSrc?: string
     const hsl = normalizeHsl(value);
     if (hsl) {
       root.style.setProperty(cssVar, hsl);
+      appliedValues.set(cssVar, hsl);
     }
   });
 
@@ -163,6 +251,45 @@ export function applyOmarchyPalette(palette: ThemePalette, wallpaperSrc?: string
     root.style.setProperty('--omarchy-wallpaper', `url('${wallpaperSrc}')`);
   } else {
     root.style.removeProperty('--omarchy-wallpaper');
+  }
+
+  if (import.meta.env.DEV && typeof window !== 'undefined') {
+    const computedStyles = window.getComputedStyle(root);
+    const resolveValue = (cssVar: string): string | null => {
+      const inline = appliedValues.get(cssVar) ?? root.style.getPropertyValue(cssVar);
+      if (inline && inline.trim()) {
+        return inline.trim();
+      }
+      const computed = computedStyles.getPropertyValue(cssVar).trim();
+      return computed || null;
+    };
+
+    const colorPairs: Array<{ background: string; foreground: string; label: string }> = [
+      { background: '--background', foreground: '--foreground', label: 'foreground/background' },
+      { background: '--surface-1', foreground: '--foreground', label: 'surface-1/foreground' },
+      { background: '--background', foreground: '--accent', label: 'accent/background' },
+    ];
+
+    colorPairs.forEach(({ background, foreground, label }) => {
+      const backgroundValue = resolveValue(background);
+      const foregroundValue = resolveValue(foreground);
+      if (!backgroundValue || !foregroundValue) {
+        return;
+      }
+
+      const backgroundLuminance = luminanceFromCssValue(backgroundValue);
+      const foregroundLuminance = luminanceFromCssValue(foregroundValue);
+      if (backgroundLuminance === null || foregroundLuminance === null) {
+        return;
+      }
+
+      const ratio = contrastRatio(backgroundLuminance, foregroundLuminance);
+      if (ratio < 4.5) {
+        console.warn(
+          `Omarchy theme "${palette.name}" has low ${label} contrast (ratio ${ratio.toFixed(2)}). Consider adjusting palette tokens for accessibility.`
+        );
+      }
+    });
   }
 }
 
