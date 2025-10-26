@@ -60,28 +60,34 @@ function App(): ReactElement {
     );
   }
 
-  // Route to different views based on window label
+  let view: ReactElement;
+
   switch (windowLabel) {
     case 'quick-add':
-      return (
+      view = (
         <QuickAddDialog
           onSuccess={() => {
             // Snippet created successfully
           }}
           onError={(error) => {
-            console.error('Failed to create snippet:', error);
+            if (import.meta.env.DEV) {
+              console.error('Failed to create snippet:', error);
+            }
           }}
         />
       );
+      break;
 
     case 'search':
-      return <SearchOverlay />;
+      view = <SearchOverlay />;
+      break;
 
     case 'settings':
-      return <SettingsWindow />;
+      view = <SettingsWindow />;
+      break;
 
     default:
-      return (
+      view = (
         <div className="min-h-screen p-6 bg-gray-50 dark:bg-gray-900">
           <div className="max-w-2xl mx-auto">
             <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-4">Snips</h1>
@@ -89,7 +95,15 @@ function App(): ReactElement {
           </div>
         </div>
       );
+      break;
   }
+
+  return (
+    <div className="window-shell">
+      <div className="window-drag-region" />
+      <div className="window-content">{view}</div>
+    </div>
+  );
 }
 
 export default App;

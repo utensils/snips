@@ -25,11 +25,23 @@ fn apply_platform_window_profile<'a, R: tauri::Runtime, M: Manager<R>>(
     profile: WindowProfile,
 ) -> tauri::WebviewWindowBuilder<'a, R, M> {
     match profile {
-        WindowProfile::Overlay => builder
-            .resizable(false)
-            .skip_taskbar(true)
-            .always_on_top(true)
-            .decorations(false),
+        WindowProfile::Overlay => {
+            if cfg!(target_os = "linux") {
+                builder
+                    .resizable(false)
+                    .skip_taskbar(true)
+                    .always_on_top(true)
+                    .decorations(true)
+                    .transparent(false)
+            } else {
+                builder
+                    .resizable(false)
+                    .skip_taskbar(true)
+                    .always_on_top(true)
+                    .decorations(false)
+                    .transparent(true)
+            }
+        }
         WindowProfile::Dialog => {
             if cfg!(target_os = "linux") {
                 builder
@@ -75,8 +87,7 @@ pub fn get_or_create_search_window(app: &AppHandle) -> Result<WebviewWindow, App
     )
     .title("Snips")
     .inner_size(600.0, 400.0)
-    .center()
-    .transparent(true);
+    .center();
 
     let builder = apply_platform_window_profile(builder, WindowProfile::Overlay);
 

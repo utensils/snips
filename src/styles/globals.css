@@ -65,6 +65,34 @@ html[data-platform='linux'].dark {
   --ring: 216 85% 66%;
 }
 
+.window-shell {
+  height: 100%;
+}
+
+.window-drag-region {
+  display: none;
+}
+
+.window-content {
+  height: 100%;
+}
+
+html[data-chrome='frameless'] .window-shell {
+  display: flex;
+  flex-direction: column;
+}
+
+html[data-chrome='frameless'] .window-drag-region {
+  display: block;
+  height: 28px;
+  -webkit-app-region: drag;
+}
+
+html[data-chrome='frameless'] .window-content {
+  flex: 1;
+  -webkit-app-region: no-drag;
+}
+
 * {
   border-color: hsl(var(--border));
 }
