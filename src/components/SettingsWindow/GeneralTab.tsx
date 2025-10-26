@@ -158,6 +158,35 @@ export function GeneralTab(): ReactElement {
         </div>
       </Card>
 
+      {/* Hyprland guidance for Linux users */}
+      {currentPlatform === 'linux' && (
+        <Card className="p-6">
+          <div className="space-y-3">
+            <div>
+              <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-1">
+                Hyprland Integration
+              </h3>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                Apply window rules to keep Snips floating and centered when using Hyprland.
+              </p>
+            </div>
+
+            <pre className="bg-gray-100 dark:bg-gray-900/90 text-gray-800 dark:text-gray-100 rounded-lg p-4 text-xs leading-relaxed">
+              {`windowrulev2 = float, title:^(Quick Add Snippet)$
+windowrulev2 = center, title:^(Quick Add Snippet)$
+windowrulev2 = size 650 700, title:^(Quick Add Snippet)$
+windowrulev2 = float, title:^(Snips)$
+windowrulev2 = center, title:^(Snips)$`}
+            </pre>
+
+            <p className="text-xs text-gray-500 dark:text-gray-400">
+              Snips now uses native window chrome on Linux; adjust these rules if you prefer tiling
+              behaviour instead.
+            </p>
+          </div>
+        </Card>
+      )}
+
       {/* Startup Behavior - macOS/Windows only */}
       {currentPlatform !== 'linux' && (
         <Card className="p-6">
