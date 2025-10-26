@@ -3,8 +3,10 @@ import { type UnlistenFn } from '@tauri-apps/api/event';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { type FormEvent, type ReactElement, useCallback, useEffect, useState } from 'react';
 
+import { HeaderBar, Pane } from '@/components/adwaita';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { Spinner } from '@/components/ui/Spinner';
 import { Textarea } from '@/components/ui/Textarea';
 import { createSnippet, getAllSnippets } from '@/lib/api';
 
@@ -255,12 +257,15 @@ export function QuickAddDialog({ onSuccess, onError }: QuickAddDialogProps): Rea
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen p-6 bg-gray-50 dark:bg-gray-900">
-        <div className="text-center">
-          <div className="inline-block w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
-          <p className="mt-4 text-sm text-gray-600 dark:text-gray-400">
-            Capturing selected text...
-          </p>
+      <div className="min-h-screen bg-background px-4 py-6 transition-colors md:px-6">
+        <div className="mx-auto flex w-full max-w-3xl flex-col gap-4">
+          <HeaderBar title="Quick Add Snippet" borderless compact />
+          <Pane padding="lg" className="flex min-h-[240px] items-center justify-center">
+            <div className="flex flex-col items-center gap-3 text-sm text-muted-foreground">
+              <Spinner />
+              <span>Capturing selected text…</span>
+            </div>
+          </Pane>
         </div>
       </div>
     );
@@ -268,119 +273,136 @@ export function QuickAddDialog({ onSuccess, onError }: QuickAddDialogProps): Rea
 
   if (error && !selectedText) {
     return (
-      <div className="flex items-center justify-center min-h-screen p-6 bg-gray-50 dark:bg-gray-900">
-        <div className="max-w-md w-full bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
-          <h2 className="text-lg font-semibold text-red-600 dark:text-red-400 mb-2">Error</h2>
-          <p className="text-sm text-gray-700 dark:text-gray-300 mb-4">{error}</p>
-          <Button onClick={handleCancel} variant="secondary" fullWidth>
-            Close
-          </Button>
+      <div className="min-h-screen bg-background px-4 py-6 transition-colors md:px-6">
+        <div className="mx-auto flex w-full max-w-3xl flex-col gap-4">
+          <HeaderBar title="Quick Add Snippet" borderless compact />
+          <Pane padding="lg" className="space-y-4">
+            <div className="space-y-2">
+              <h2 className="text-lg font-semibold text-red-600 dark:text-red-200">
+                Something went wrong
+              </h2>
+              <p className="text-sm text-muted-foreground">{error}</p>
+            </div>
+            <div className="flex justify-end">
+              <Button onClick={handleCancel} variant="secondary">
+                Close
+              </Button>
+            </div>
+          </Pane>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen p-6 bg-gray-50 dark:bg-gray-900 animate-fade-in">
-      <div className="max-w-2xl mx-auto bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 animate-fade-in-scale">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-6">
-          Quick Add Snippet
-        </h1>
+    <div className="min-h-screen bg-background px-4 py-6 transition-colors md:px-6">
+      <div className="mx-auto flex w-full max-w-3xl flex-col gap-4">
+        <HeaderBar
+          title="Quick Add Snippet"
+          subtitle={selectedText ? `${selectedText.length} characters captured` : undefined}
+          end={
+            <Button variant="ghost" onClick={handleCancel} type="button">
+              Close
+            </Button>
+          }
+        />
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Selected text (editable) */}
-          <Textarea
-            label="Content"
-            value={selectedText}
-            onChange={(e) => setSelectedText(e.target.value)}
-            placeholder="Captured text will appear here - you can edit it before saving"
-            fullWidth
-            rows={6}
-            helperText="This text was automatically captured. You can modify it before creating the snippet."
-          />
-
-          {/* Name input (required) */}
-          <Input
-            label="Name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="e.g., Python async function template"
-            required
-            fullWidth
-            error={nameError}
-            autoFocus
-            maxLength={255}
-          />
-
-          {/* Description input (optional) */}
-          <Textarea
-            label="Description"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder="Optional description of this snippet"
-            fullWidth
-            rows={2}
-          />
-
-          {/* Tags input (optional) with autocomplete */}
-          <div className="relative">
-            <Input
-              label="Tags"
-              value={tags}
-              onChange={(e) => {
-                setTags(e.target.value);
-                setShowTagSuggestions(true);
-              }}
-              onFocus={() => setShowTagSuggestions(true)}
-              onBlur={() => {
-                // Delay to allow clicking suggestions
-                setTimeout(() => setShowTagSuggestions(false), 200);
-              }}
-              placeholder="e.g., python, async, template (comma-separated)"
+        <Pane padding="lg" className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-5">
+            {/* Selected text (editable) */}
+            <Textarea
+              label="Content"
+              value={selectedText}
+              onChange={(e) => setSelectedText(e.target.value)}
+              placeholder="Captured text will appear here - you can edit it before saving"
               fullWidth
-              helperText="Comma-separated list of tags"
+              rows={6}
+              helperText="This text was automatically captured. You can modify it before creating the snippet."
             />
 
-            {/* Tag suggestions dropdown */}
-            {showTagSuggestions && tagSuggestions.length > 0 && (
-              <div className="absolute z-10 w-full mt-1 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg max-h-40 overflow-y-auto">
-                {tagSuggestions.map((suggestion) => (
-                  <button
-                    key={suggestion}
-                    type="button"
-                    className="w-full px-3 py-2 text-left text-sm text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-600 focus:bg-gray-100 dark:focus:bg-gray-600 focus:outline-none"
-                    onMouseDown={(e) => {
-                      e.preventDefault();
-                      handleTagSuggestionClick(suggestion);
-                    }}
-                  >
-                    {suggestion}
-                  </button>
-                ))}
+            {/* Name input (required) */}
+            <Input
+              label="Name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="e.g., Python async function template"
+              required
+              fullWidth
+              error={nameError}
+              autoFocus
+              maxLength={255}
+            />
+
+            {/* Description input (optional) */}
+            <Textarea
+              label="Description"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Optional description of this snippet"
+              fullWidth
+              rows={2}
+            />
+
+            {/* Tags input (optional) with autocomplete */}
+            <div className="relative">
+              <Input
+                label="Tags"
+                value={tags}
+                onChange={(e) => {
+                  setTags(e.target.value);
+                  setShowTagSuggestions(true);
+                }}
+                onFocus={() => setShowTagSuggestions(true)}
+                onBlur={() => {
+                  // Delay to allow clicking suggestions
+                  setTimeout(() => setShowTagSuggestions(false), 200);
+                }}
+                placeholder="e.g., python, async, template (comma-separated)"
+                fullWidth
+                helperText="Comma-separated list of tags"
+              />
+
+              {/* Tag suggestions dropdown */}
+              {showTagSuggestions && tagSuggestions.length > 0 && (
+                <div className="absolute z-20 mt-2 w-full max-h-40 overflow-y-auto rounded-xl border border-border/60 bg-background/95 shadow-lg shadow-black/10 supports-[backdrop-filter]:backdrop-blur">
+                  {tagSuggestions.map((suggestion) => (
+                    <button
+                      key={suggestion}
+                      type="button"
+                      className="w-full px-3 py-2 text-left text-sm text-foreground transition-colors hover:bg-muted/40 focus:bg-muted/40 focus:outline-none"
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        handleTagSuggestionClick(suggestion);
+                      }}
+                    >
+                      {suggestion}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Error message */}
+            {error && selectedText && (
+              <div
+                className="rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-600 dark:text-red-200"
+                role="alert"
+              >
+                {error}
               </div>
             )}
-          </div>
 
-          {/* Error message */}
-          {error && selectedText && (
-            <div
-              className="px-4 py-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-sm text-red-700 dark:text-red-400"
-              role="alert"
-            >
-              {error}
+            {/* Action buttons */}
+            <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-end">
+              <Button type="submit" variant="primary" fullWidth disabled={isSaving}>
+                {isSaving ? 'Saving...' : 'Save Snippet'}
+              </Button>
+              <Button type="button" variant="secondary" onClick={handleCancel} fullWidth>
+                Cancel
+              </Button>
             </div>
-          )}
-
-          {/* Action buttons */}
-          <div className="flex gap-3 pt-2">
-            <Button type="submit" variant="primary" fullWidth disabled={isSaving}>
-              {isSaving ? 'Saving...' : 'Save Snippet'}
-            </Button>
-            <Button type="button" variant="secondary" onClick={handleCancel} fullWidth>
-              Cancel
-            </Button>
-          </div>
-        </form>
+          </form>
+        </Pane>
       </div>
     </div>
   );

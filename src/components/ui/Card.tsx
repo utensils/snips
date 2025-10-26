@@ -1,23 +1,12 @@
 import { type HTMLAttributes, type ReactElement, type ReactNode } from 'react';
 
+import { Pane } from '@/components/adwaita';
+
 export interface CardProps extends HTMLAttributes<HTMLDivElement> {
   children: ReactNode;
   variant?: 'default' | 'outlined' | 'elevated';
   padding?: 'none' | 'sm' | 'md' | 'lg';
 }
-
-const variantClasses = {
-  default: 'bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700',
-  outlined: 'bg-transparent border border-gray-300 dark:border-gray-600',
-  elevated: 'bg-white dark:bg-gray-800 shadow-md dark:shadow-gray-900/50',
-};
-
-const paddingClasses = {
-  none: '',
-  sm: 'p-3',
-  md: 'p-4',
-  lg: 'p-6',
-};
 
 /**
  * Reusable Card component for grouping content
@@ -29,14 +18,32 @@ export function Card({
   className = '',
   ...props
 }: CardProps): ReactElement {
-  const classes = ['rounded-lg', variantClasses[variant], paddingClasses[padding], className]
-    .filter(Boolean)
-    .join(' ');
+  const paddingMap: Record<CardProps['padding'], 'sm' | 'md' | 'lg'> = {
+    none: 'sm',
+    sm: 'sm',
+    md: 'md',
+    lg: 'lg',
+  };
+
+  const variantClasses: Record<CardProps['variant'], string> = {
+    default: '',
+    outlined: 'bg-background/50 supports-[backdrop-filter]:backdrop-blur-sm',
+    elevated: 'shadow-lg shadow-black/10 dark:shadow-black/40',
+  };
+
+  const extraClasses = [variantClasses[variant], className];
+  if (padding === 'none') {
+    extraClasses.push('p-0');
+  }
 
   return (
-    <div className={classes} {...props}>
+    <Pane
+      padding={paddingMap[padding]}
+      className={extraClasses.filter(Boolean).join(' ')}
+      {...props}
+    >
       {children}
-    </div>
+    </Pane>
   );
 }
 
@@ -70,10 +77,7 @@ export function CardTitle({
   ...props
 }: CardTitleProps): ReactElement {
   return (
-    <Component
-      className={`text-lg font-semibold text-gray-900 dark:text-gray-100 ${className}`}
-      {...props}
-    >
+    <Component className={`text-lg font-semibold text-foreground ${className}`} {...props}>
       {children}
     </Component>
   );

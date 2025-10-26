@@ -1,7 +1,6 @@
-import { type ReactElement, useState } from 'react';
+import { type ReactElement, useMemo, useState } from 'react';
 
-import { Container } from '@/components/layout/Container';
-import { Stack } from '@/components/layout/Stack';
+import { HeaderBar, Pane, SegmentedButtons } from '@/components/adwaita';
 
 import { AnalyticsTab } from './AnalyticsTab';
 import { GeneralTab } from './GeneralTab';
@@ -20,89 +19,106 @@ export type SettingsTab =
   | 'shortcuts'
   | 'advanced';
 
+const TAB_DEFINITIONS: Array<{ id: SettingsTab; label: string }> = [
+  { id: 'general', label: 'General' },
+  { id: 'storage', label: 'Storage' },
+  { id: 'snippets', label: 'Snippets' },
+  { id: 'analytics', label: 'Analytics' },
+  { id: 'shortcuts', label: 'Shortcuts' },
+  { id: 'advanced', label: 'Advanced' },
+];
+
 /**
  * Settings Window - Main settings interface with tabbed navigation
  */
 export function SettingsWindow(): ReactElement {
   const [activeTab, setActiveTab] = useState<SettingsTab>('general');
 
-  return (
-    <div className="h-screen w-screen flex flex-col bg-gray-50 dark:bg-gray-900">
-      {/* Header */}
-      <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4">
-        <h1 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">Settings</h1>
-      </header>
+  const tabOptions = useMemo(() => TAB_DEFINITIONS.map(({ id, label }) => ({ id, label })), []);
+  const activeTabDefinition = TAB_DEFINITIONS.find((tab) => tab.id === activeTab);
 
-      <div className="flex flex-1 overflow-hidden">
-        {/* Sidebar Navigation */}
-        <nav className="w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 p-4">
-          <Stack spacing="sm">
-            <TabButton
-              label="General"
-              isActive={activeTab === 'general'}
-              onClick={() => setActiveTab('general')}
-            />
-            <TabButton
-              label="Storage"
-              isActive={activeTab === 'storage'}
-              onClick={() => setActiveTab('storage')}
-            />
-            <TabButton
-              label="Snippets"
-              isActive={activeTab === 'snippets'}
-              onClick={() => setActiveTab('snippets')}
-            />
-            <TabButton
-              label="Analytics"
-              isActive={activeTab === 'analytics'}
-              onClick={() => setActiveTab('analytics')}
-            />
-            <TabButton
-              label="Shortcuts"
-              isActive={activeTab === 'shortcuts'}
-              onClick={() => setActiveTab('shortcuts')}
-            />
-            <TabButton
-              label="Advanced"
-              isActive={activeTab === 'advanced'}
-              onClick={() => setActiveTab('advanced')}
-            />
-          </Stack>
-        </nav>
-
-        {/* Main Content Area */}
-        <main className="flex-1 overflow-hidden">
-          {activeTab === 'general' && (
-            <Container maxWidth="2xl" className="py-8">
-              <GeneralTab />
-            </Container>
-          )}
-          {activeTab === 'storage' && (
-            <Container maxWidth="2xl" className="py-8">
-              <StorageTab />
-            </Container>
-          )}
-          {activeTab === 'snippets' && (
-            <div className="h-full p-6">
-              <SnippetsTab />
+  const renderContent = (): ReactElement => {
+    switch (activeTab) {
+      case 'general':
+        return (
+          <Pane padding="lg" className="space-y-6">
+            <GeneralTab />
+          </Pane>
+        );
+      case 'storage':
+        return (
+          <Pane padding="lg" className="space-y-6">
+            <StorageTab />
+          </Pane>
+        );
+      case 'snippets':
+        return (
+          <Pane padding="lg" className="flex h-full flex-col">
+            <SnippetsTab />
+          </Pane>
+        );
+      case 'analytics':
+        return (
+          <Pane padding="lg" className="space-y-6">
+            <AnalyticsTab />
+          </Pane>
+        );
+      case 'shortcuts':
+        return (
+          <Pane padding="lg" className="space-y-6">
+            <ShortcutsTab />
+          </Pane>
+        );
+      case 'advanced':
+      default:
+        return (
+          <Pane padding="lg" className="space-y-4">
+            <div className="space-y-2">
+              <h2 className="text-lg font-semibold text-foreground">Advanced settings</h2>
+              <p className="text-sm text-muted-foreground">
+                Additional controls are on the roadmap. In the meantime you can edit the
+                configuration file manually.
+              </p>
             </div>
-          )}
-          {activeTab === 'analytics' && (
-            <Container maxWidth="2xl" className="py-8">
-              <AnalyticsTab />
-            </Container>
-          )}
-          {activeTab === 'shortcuts' && (
-            <Container maxWidth="2xl" className="py-8">
-              <ShortcutsTab />
-            </Container>
-          )}
-          {activeTab === 'advanced' && (
-            <Container maxWidth="2xl" className="py-8">
-              <div>Advanced Settings - Coming Soon</div>
-            </Container>
-          )}
-        </main>
+          </Pane>
+        );
+    }
+  };
+
+  return (
+    <div className="flex h-screen w-screen flex-col bg-background px-4 py-4 text-foreground md:px-6 md:py-6">
+      <HeaderBar title="Settings" subtitle={activeTabDefinition?.label} />
+
+      <div className="mt-4 flex flex-1 gap-4 overflow-hidden">
+        <aside className="hidden w-64 shrink-0 md:flex">
+          <Pane padding="sm" className="h-full overflow-y-auto">
+            <nav className="flex flex-col gap-1">
+              {TAB_DEFINITIONS.map((tab) => (
+                <TabButton
+                  key={tab.id}
+                  label={tab.label}
+                  isActive={activeTab === tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                />
+              ))}
+            </nav>
+          </Pane>
+        </aside>
+
+        <section className="flex flex-1 flex-col gap-4 overflow-hidden">
+          <div className="md:hidden">
+            <SegmentedButtons
+              options={tabOptions}
+              value={activeTab}
+              onChange={(value) => setActiveTab(value)}
+              ariaLabel="Settings sections"
+              fullWidth
+              size="sm"
+            />
+          </div>
+
+          <div className="flex-1 overflow-y-auto pb-6">{renderContent()}</div>
+        </section>
       </div>
     </div>
   );
@@ -122,11 +138,11 @@ function TabButton({ label, isActive, onClick }: TabButtonProps): ReactElement {
     <button
       onClick={onClick}
       className={`
-        w-full text-left px-4 py-3 rounded-lg font-medium transition-colors
+        w-full rounded-2xl px-3 py-2 text-left text-sm font-medium transition-colors
         ${
           isActive
-            ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
-            : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'
+            ? 'bg-background text-foreground shadow-sm border border-border/60'
+            : 'text-muted-foreground hover:bg-muted/30'
         }
       `}
       aria-current={isActive ? 'page' : undefined}
