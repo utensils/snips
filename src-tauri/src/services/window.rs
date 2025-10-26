@@ -252,28 +252,12 @@ fn apply_platform_window_profile<'a, R: tauri::Runtime, M: Manager<R>>(
             };
             apply_window_chrome(builder)
         }
-        WindowProfile::Dialog => {
-            if cfg!(target_os = "linux") {
-                let wm = current_window_manager();
-                let builder = builder.resizable(true);
-                let builder = if matches!(
-                    wm,
-                    WindowManager::Hyprland | WindowManager::Sway | WindowManager::River
-                ) {
-                    builder.always_on_top(true).skip_taskbar(true)
-                } else {
-                    builder.always_on_top(false).skip_taskbar(false)
-                };
-                apply_window_chrome(builder)
-            } else {
-                apply_window_chrome(
-                    builder
-                        .resizable(false)
-                        .always_on_top(true)
-                        .skip_taskbar(true),
-                )
-            }
-        }
+        WindowProfile::Dialog => apply_window_chrome(
+            builder
+                .resizable(false)
+                .always_on_top(true)
+                .skip_taskbar(true),
+        ),
         WindowProfile::Standard => apply_window_chrome(builder.resizable(true).skip_taskbar(false)),
     }
 }
@@ -800,7 +784,7 @@ pub fn show_quick_add_window<R: Runtime>(app: &AppHandle<R>) -> Result<(), AppEr
                 }
             });
 
-            return Err(e);
+            return Ok(());
         }
     };
 

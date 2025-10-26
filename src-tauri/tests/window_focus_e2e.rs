@@ -142,3 +142,16 @@ fn toggle_search_window_creates_and_shows_on_first_call() {
     std::env::remove_var("SNIPS_ASSUME_PROFILE_TOP");
     std::env::remove_var("SNIPS_ASSUME_WINDOW_VISIBILITY");
 }
+
+#[cfg(target_os = "linux")]
+#[test]
+fn show_quick_add_window_handles_empty_selection() {
+    let app = build_mock_app();
+    let handle = app.handle();
+
+    let result = snips_lib::services::window::show_quick_add_window(&handle);
+    assert!(
+        result.is_ok(),
+        "quick add window should surface error banner without failing D-Bus"
+    );
+}
