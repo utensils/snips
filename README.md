@@ -74,6 +74,7 @@ sudo dnf install webkit2gtk4.1-devel
 - Quick Add uses native decorations, participates in tiling WMs, and honors the per-platform “window chrome” preference exposed in Settings
 - Focus recovery now retries with exponential backoff on Wayland and surfaces warnings if the compositor denies focus
 - `tauri invoke window_diagnostics` provides a structured snapshot (visibility, focus, size, decoration state) for support scripts
+- If Omarchy exports are missing, Snips auto-loads an embedded Catppuccin Mocha palette; see `docs/omarchy-theme-fallback.md` if you want to copy the CSS fragment manually or share it with teammates.
 
 **Hyprland/Wayland Integration:**
 

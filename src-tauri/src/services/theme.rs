@@ -220,15 +220,22 @@ fn load_theme_palette_from_path(
 
 #[cfg(target_os = "linux")]
 pub fn load_omarchy_theme_palette() -> Result<ThemePalette, AppError> {
-    let theme_root = omarchy_theme_root()
-        .ok_or_else(|| AppError::NotFound("Omarchy theme directory not found".into()))?;
-
-    if !theme_root.exists() {
-        return Err(AppError::NotFound(format!(
-            "Omarchy theme directory missing: {}",
-            theme_root.display()
-        )));
-    }
+    let theme_root = match omarchy_theme_root() {
+        Some(path) if path.exists() => path,
+        Some(path) => {
+            eprintln!(
+                "[WARN] [theme] Omarchy theme directory missing at {} – using fallback Catppuccin palette",
+                path.display()
+            );
+            return Ok(fallback_theme_palette());
+        }
+        None => {
+            eprintln!(
+                "[WARN] [theme] Omarchy theme directory not configured – using fallback Catppuccin palette"
+            );
+            return Ok(fallback_theme_palette());
+        }
+    };
 
     let theme_name = std::fs::read_link(&theme_root)
         .map(|p| {
@@ -259,7 +266,17 @@ pub fn load_omarchy_theme_palette() -> Result<ThemePalette, AppError> {
         })
         .map(|p| p.to_string_lossy().to_string());
 
-    load_theme_palette_from_path(&theme_root, theme_name, wallpaper)
+    match load_theme_palette_from_path(&theme_root, theme_name, wallpaper) {
+        Ok(palette) => Ok(palette),
+        Err(err) => {
+            eprintln!(
+                "[WARN] [theme] Failed to load Omarchy theme from {}: {} – using fallback palette",
+                theme_root.display(),
+                err
+            );
+            Ok(fallback_theme_palette())
+        }
+    }
 }
 
 #[cfg(target_os = "linux")]
@@ -331,6 +348,28 @@ pub fn import_omarchy_theme(theme_name: &str) -> Result<ThemePalette, AppError> 
     load_theme_palette_from_path(&theme_dir, resolved_name, wallpaper)
 }
 
+#[cfg(target_os = "linux")]
+fn fallback_theme_palette() -> ThemePalette {
+    let mut colors = HashMap::new();
+    colors.insert("base".into(), "#1e1e2e".into());
+    colors.insert("background".into(), "#181825".into());
+    colors.insert("text".into(), "#cdd6f4".into());
+    colors.insert("foreground".into(), "#cdd6f4".into());
+    colors.insert("selected_text".into(), "#1e1e2e".into());
+    colors.insert("accent".into(), "#89b4fa".into());
+    colors.insert("border".into(), "#45475a".into());
+    colors.insert("surface".into(), "#313244".into());
+    colors.insert("muted".into(), "#585b70".into());
+
+    ThemePalette {
+        name: "Catppuccin Mocha (Fallback)".into(),
+        colors,
+        is_light: false,
+        icon_theme: Some("Adwaita-dark".into()),
+        wallpaper: None,
+    }
+}
+
 #[cfg(not(target_os = "linux"))]
 pub fn list_omarchy_themes() -> Result<Vec<String>, AppError> {
     Err(AppError::Unsupported(
@@ -350,4 +389,31 @@ pub fn load_omarchy_theme_palette() -> Result<ThemePalette, AppError> {
     Err(AppError::Unsupported(
         "Omarchy themes supported on Linux only".into(),
     ))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn uses_fallback_palette_when_theme_missing() {
+        let original_home = std::env::var("HOME").ok();
+        let temp_home = std::env::temp_dir().join("snips_theme_test_home");
+        let _ = std::fs::remove_dir_all(&temp_home);
+        std::fs::create_dir_all(&temp_home).expect("create temp home");
+        std::env::set_var("HOME", &temp_home);
+
+        let palette = load_omarchy_theme_palette().expect("fallback palette loads");
+        assert_eq!(palette.name, "Catppuccin Mocha (Fallback)");
+        assert_eq!(palette.colors.get("accent"), Some(&"#89b4fa".to_string()));
+
+        if let Some(home) = original_home {
+            std::env::set_var("HOME", home);
+        } else {
+            std::env::remove_var("HOME");
+        }
+
+        let _ = std::fs::remove_dir_all(&temp_home);
+    }
 }
