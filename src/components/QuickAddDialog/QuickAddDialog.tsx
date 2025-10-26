@@ -50,6 +50,32 @@ export function QuickAddDialog({
   const [existingTags, setExistingTags] = useState<string[]>([]);
   const [showTagSuggestions, setShowTagSuggestions] = useState<boolean>(false);
 
+  // Pull any pre-captured text from the backend in case the event fired
+  // before the listeners finished registering (common on first launch).
+  useEffect(() => {
+    if (!isLoading) return;
+
+    let cancelled = false;
+
+    const hydrateFromCache = async (): Promise<void> => {
+      try {
+        const cached = await invoke<string | null>('get_latest_quick_add_capture');
+        if (!cancelled && cached != null) {
+          setSelectedText(cached);
+          setIsLoading(false);
+        }
+      } catch (err) {
+        errorLog('failed to hydrate quick add capture cache:', err);
+      }
+    };
+
+    void hydrateFromCache();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isLoading]);
+
   // Listen for selected text event from backend
   useEffect(() => {
     let unlistenText: UnlistenFn | undefined;

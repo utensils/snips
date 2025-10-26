@@ -60,6 +60,7 @@ static FOCUS_METRICS_STATE: OnceLock<RwLock<HashMap<String, FocusResult>>> = Onc
 static WINDOW_ON_TOP_STATE: OnceLock<RwLock<HashMap<String, bool>>> = OnceLock::new();
 static WINDOW_VISIBILITY_STATE: OnceLock<RwLock<HashMap<String, bool>>> = OnceLock::new();
 static WINDOW_COUNTERS_STATE: OnceLock<RwLock<HashMap<String, WindowCounters>>> = OnceLock::new();
+static QUICK_ADD_CAPTURE_STATE: OnceLock<RwLock<Option<String>>> = OnceLock::new();
 
 fn window_chrome_settings_handle() -> &'static RwLock<WindowChromeSettings> {
     WINDOW_CHROME_STATE.get_or_init(|| RwLock::new(WindowChromeSettings::default()))
@@ -83,6 +84,29 @@ fn visibility_state_handle() -> &'static RwLock<HashMap<String, bool>> {
 
 fn counters_handle() -> &'static RwLock<HashMap<String, WindowCounters>> {
     WINDOW_COUNTERS_STATE.get_or_init(|| RwLock::new(HashMap::new()))
+}
+
+fn quick_add_capture_handle() -> &'static RwLock<Option<String>> {
+    QUICK_ADD_CAPTURE_STATE.get_or_init(|| RwLock::new(None))
+}
+
+pub fn record_quick_add_capture(text: String) {
+    if let Ok(mut guard) = quick_add_capture_handle().write() {
+        *guard = Some(text);
+    }
+}
+
+pub fn take_quick_add_capture() -> Option<String> {
+    quick_add_capture_handle()
+        .write()
+        .ok()
+        .and_then(|mut guard| guard.take())
+}
+
+fn clear_quick_add_capture() {
+    if let Ok(mut guard) = quick_add_capture_handle().write() {
+        *guard = None;
+    }
 }
 
 fn metrics_enabled() -> bool {
@@ -854,6 +878,8 @@ pub fn show_quick_add_window<R: Runtime>(app: &AppHandle<R>) -> Result<(), AppEr
                 message
             );
 
+            clear_quick_add_capture();
+
             let window = get_or_create_quick_add_window(app)?;
             center_window(&window)?;
             show_window(&window)?;
@@ -890,6 +916,8 @@ pub fn show_quick_add_window<R: Runtime>(app: &AppHandle<R>) -> Result<(), AppEr
     eprintln!("[DEBUG] [window.rs] Showing window");
     show_window(&window)?;
     eprintln!("[DEBUG] [window.rs] Window shown successfully");
+
+    record_quick_add_capture(text.clone());
 
     // Emit event AFTER showing window to ensure frontend listener is ready
     // Use longer delay if window was just created (React needs to mount)
@@ -1166,6 +1194,15 @@ mod tests {
             delay_existing >= 100,
             "Existing window delay should be at least 100ms"
         );
+    }
+
+    #[test]
+    fn test_quick_add_capture_round_trip() {
+        record_quick_add_capture("example".to_string());
+        assert_eq!(take_quick_add_capture(), Some("example".to_string()));
+        assert_eq!(take_quick_add_capture(), None);
+        clear_quick_add_capture();
+        assert_eq!(take_quick_add_capture(), None);
     }
 
     /// Integration test notes (requires running app):
