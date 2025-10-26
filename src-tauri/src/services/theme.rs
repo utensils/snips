@@ -1,6 +1,8 @@
 use crate::utils::error::AppError;
 use serde::Serialize;
 use std::collections::HashMap;
+#[cfg(target_os = "linux")]
+use std::process::Command;
 
 #[derive(Debug, Serialize)]
 pub struct ThemePalette {
@@ -227,13 +229,17 @@ pub fn load_omarchy_theme_palette() -> Result<ThemePalette, AppError> {
                 "[WARN] [theme] Omarchy theme directory missing at {} – using fallback Catppuccin palette",
                 path.display()
             );
-            return Ok(fallback_theme_palette());
+            let mut fallback = fallback_theme_palette();
+            enrich_with_system_preferences(&mut fallback);
+            return Ok(fallback);
         }
         None => {
             eprintln!(
                 "[WARN] [theme] Omarchy theme directory not configured – using fallback Catppuccin palette"
             );
-            return Ok(fallback_theme_palette());
+            let mut fallback = fallback_theme_palette();
+            enrich_with_system_preferences(&mut fallback);
+            return Ok(fallback);
         }
     };
 
@@ -267,14 +273,19 @@ pub fn load_omarchy_theme_palette() -> Result<ThemePalette, AppError> {
         .map(|p| p.to_string_lossy().to_string());
 
     match load_theme_palette_from_path(&theme_root, theme_name, wallpaper) {
-        Ok(palette) => Ok(palette),
+        Ok(mut palette) => {
+            enrich_with_system_preferences(&mut palette);
+            Ok(palette)
+        }
         Err(err) => {
             eprintln!(
                 "[WARN] [theme] Failed to load Omarchy theme from {}: {} – using fallback palette",
                 theme_root.display(),
                 err
             );
-            Ok(fallback_theme_palette())
+            let mut fallback = fallback_theme_palette();
+            enrich_with_system_preferences(&mut fallback);
+            Ok(fallback)
         }
     }
 }
@@ -384,6 +395,188 @@ pub fn import_omarchy_theme(_theme_name: &str) -> Result<ThemePalette, AppError>
     ))
 }
 
+#[cfg(target_os = "linux")]
+#[derive(Debug, PartialEq, Eq)]
+enum DesktopEnvironment {
+    Gnome,
+    Kde,
+    Other,
+}
+
+#[cfg(target_os = "linux")]
+fn current_desktop_environment() -> DesktopEnvironment {
+    let desktop = std::env::var("XDG_CURRENT_DESKTOP")
+        .or_else(|_| std::env::var("DESKTOP_SESSION"))
+        .unwrap_or_default()
+        .to_lowercase();
+
+    if desktop.contains("gnome") {
+        DesktopEnvironment::Gnome
+    } else if desktop.contains("plasma") || desktop.contains("kde") {
+        DesktopEnvironment::Kde
+    } else {
+        DesktopEnvironment::Other
+    }
+}
+
+#[cfg(target_os = "linux")]
+fn detect_gsettings_value(schema: &str, key: &str) -> Option<String> {
+    let output = Command::new("gsettings")
+        .args(["get", schema, key])
+        .output()
+        .ok()?;
+
+    if !output.status.success() {
+        return None;
+    }
+
+    let value = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    if value.is_empty() {
+        return None;
+    }
+
+    Some(value)
+}
+
+#[cfg(target_os = "linux")]
+fn parse_rgb_triplet_to_string(value: &str) -> Option<String> {
+    let trimmed = value.trim();
+    if !trimmed.starts_with("rgb") {
+        return None;
+    }
+    Some(trimmed.to_string())
+}
+
+#[cfg(target_os = "linux")]
+fn detect_gnome_accent_color() -> Option<String> {
+    let raw = detect_gsettings_value("org.gnome.desktop.interface", "accent-color")?;
+    let value = raw.trim_matches('\'');
+    if value.is_empty() || value == "default" {
+        return None;
+    }
+
+    const GNOME_ACCENTS: &[(&str, &str)] = &[
+        ("blue", "#3584e4"),
+        ("green", "#57d9a3"),
+        ("mint", "#57d9a3"),
+        ("purple", "#9141ac"),
+        ("pink", "#ff79c6"),
+        ("orange", "#ff7800"),
+        ("red", "#e01b24"),
+        ("slate", "#8c8c93"),
+        ("sand", "#cdab8f"),
+        ("yellow", "#f6d32d"),
+        ("teal", "#2ec27e"),
+    ];
+
+    if let Some((_, hex)) = GNOME_ACCENTS
+        .iter()
+        .find(|(name, _)| value.eq_ignore_ascii_case(name))
+    {
+        return Some((*hex).to_string());
+    }
+
+    parse_rgb_triplet_to_string(value)
+}
+
+#[cfg(target_os = "linux")]
+fn detect_gnome_color_is_light() -> Option<bool> {
+    let raw = detect_gsettings_value("org.gnome.desktop.interface", "color-scheme")?;
+    let value = raw.trim_matches('\'');
+    match value {
+        "prefer-dark" => Some(false),
+        "prefer-light" => Some(true),
+        _ => None,
+    }
+}
+
+#[cfg(target_os = "linux")]
+fn kdeglobals_contents() -> Option<String> {
+    let path = home_dir()?.join(".config/kdeglobals");
+    std::fs::read_to_string(path).ok()
+}
+
+#[cfg(target_os = "linux")]
+fn parse_ini_value(contents: &str, section: &str, key: &str) -> Option<String> {
+    let mut in_section = false;
+    for line in contents.lines() {
+        let trimmed = line.trim();
+        if trimmed.starts_with('[') && trimmed.ends_with(']') {
+            in_section = trimmed
+                .trim_matches(['[', ']'].as_ref())
+                .eq_ignore_ascii_case(section);
+            continue;
+        }
+        if in_section {
+            let mut parts = trimmed.splitn(2, '=');
+            let current_key = parts.next()?.trim();
+            if current_key.eq_ignore_ascii_case(key) {
+                return parts.next().map(|value| value.trim().to_string());
+            }
+        }
+    }
+    None
+}
+
+#[cfg(target_os = "linux")]
+fn detect_kde_accent_color() -> Option<String> {
+    let contents = kdeglobals_contents()?;
+    let value = parse_ini_value(&contents, "General", "AccentColor")?;
+    let mut components = value
+        .split(',')
+        .filter_map(|part| part.trim().parse::<u8>().ok());
+    let r = components.next()?;
+    let g = components.next()?;
+    let b = components.next()?;
+    Some(format!("rgb({},{},{})", r, g, b))
+}
+
+#[cfg(target_os = "linux")]
+fn detect_kde_color_is_light() -> Option<bool> {
+    let contents = kdeglobals_contents()?;
+    let scheme = parse_ini_value(&contents, "General", "ColorScheme")?;
+    if scheme.to_lowercase().contains("dark") {
+        Some(false)
+    } else if scheme.to_lowercase().contains("light") {
+        Some(true)
+    } else {
+        None
+    }
+}
+
+#[cfg(target_os = "linux")]
+fn enrich_with_system_preferences(palette: &mut ThemePalette) {
+    match current_desktop_environment() {
+        DesktopEnvironment::Gnome => {
+            if let Some(accent) = detect_gnome_accent_color() {
+                if !palette.colors.contains_key("accent") {
+                    palette.colors.insert("accent".into(), accent.clone());
+                }
+                if !palette.colors.contains_key("selected_text") {
+                    palette.colors.insert("selected_text".into(), accent);
+                }
+            }
+            if let Some(is_light) = detect_gnome_color_is_light() {
+                palette.is_light = is_light;
+            }
+        }
+        DesktopEnvironment::Kde => {
+            if let Some(accent) = detect_kde_accent_color() {
+                if !palette.colors.contains_key("accent") {
+                    palette.colors.insert("accent".into(), accent.clone());
+                }
+                if !palette.colors.contains_key("selected_text") {
+                    palette.colors.insert("selected_text".into(), accent);
+                }
+            }
+            if let Some(is_light) = detect_kde_color_is_light() {
+                palette.is_light = is_light;
+            }
+        }
+        DesktopEnvironment::Other => {}
+    }
+}
+
 #[cfg(not(target_os = "linux"))]
 pub fn load_omarchy_theme_palette() -> Result<ThemePalette, AppError> {
     Err(AppError::Unsupported(
@@ -415,5 +608,29 @@ mod tests {
         }
 
         let _ = std::fs::remove_dir_all(&temp_home);
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn parses_kde_ini_values() {
+        let sample = "[General]\nAccentColor=12,34,56\nColorScheme=BreezeDark\n";
+        assert_eq!(
+            parse_ini_value(sample, "General", "AccentColor"),
+            Some("12,34,56".into())
+        );
+        assert_eq!(
+            parse_ini_value(sample, "General", "ColorScheme"),
+            Some("BreezeDark".into())
+        );
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn parses_rgb_triplet_strings() {
+        assert_eq!(
+            parse_rgb_triplet_to_string("rgb(12, 34, 56)"),
+            Some("rgb(12, 34, 56)".into())
+        );
+        assert!(parse_rgb_triplet_to_string("blue").is_none());
     }
 }
