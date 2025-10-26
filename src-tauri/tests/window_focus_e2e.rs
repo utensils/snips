@@ -104,6 +104,14 @@ fn window_sequence_reports_expected_visibility() {
     assert_eq!(search_diag.is_visible, Some(false));
     assert_eq!(search_diag.visibility_expected, Some(false));
 
+    if let Some(metrics) = snips_lib::services::metrics::gather_metrics() {
+        assert!(metrics.contains("snips_window_focus_attempts_total"));
+        assert!(
+            metrics.contains("result=\"success\"") || metrics.contains("result=\"failure\""),
+            "expected focus metrics to record at least one result variant"
+        );
+    }
+
     std::env::remove_var("HYPRLAND_INSTANCE_SIGNATURE");
     std::env::remove_var("SNIPS_ASSUME_PROFILE_TOP");
     std::env::remove_var("SNIPS_ASSUME_WINDOW_VISIBILITY");

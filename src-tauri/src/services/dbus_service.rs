@@ -5,7 +5,7 @@
 ///
 /// This is Linux-only and will not panic if D-Bus is unavailable.
 #[cfg(target_os = "linux")]
-use tauri::AppHandle;
+use tauri::{AppHandle, Runtime};
 #[cfg(target_os = "linux")]
 use zbus::{interface, ConnectionBuilder};
 
@@ -20,13 +20,13 @@ use crate::services::{dbus_watchdog, window};
 /// Exposed at: io.utensils.snips
 /// Object path: /io/utensils/snips
 #[cfg(target_os = "linux")]
-struct SnipsDBusInterface {
-    app: AppHandle,
+struct SnipsDBusInterface<R: Runtime> {
+    app: AppHandle<R>,
 }
 
 #[cfg(target_os = "linux")]
 #[interface(name = "io.utensils.snips")]
-impl SnipsDBusInterface {
+impl<R: Runtime + 'static> SnipsDBusInterface<R> {
     /// Show the Quick Add Snippet window
     ///
     /// This captures selected text from the PRIMARY selection and displays
@@ -163,7 +163,7 @@ impl SnipsDBusInterface {
 ///
 /// * `app` - The Tauri application handle
 #[cfg(target_os = "linux")]
-pub async fn init_dbus_service(app: AppHandle) {
+pub async fn init_dbus_service<R: Runtime + 'static>(app: AppHandle<R>) {
     eprintln!("[DEBUG] [dbus_service] Initializing D-Bus service");
 
     let interface = SnipsDBusInterface { app: app.clone() };
@@ -223,6 +223,6 @@ pub async fn init_dbus_service(app: AppHandle) {
 
 /// No-op for non-Linux platforms
 #[cfg(not(target_os = "linux"))]
-pub async fn init_dbus_service(_app: tauri::AppHandle) {
+pub async fn init_dbus_service<R: tauri::Runtime>(_app: tauri::AppHandle<R>) {
     // D-Bus is Linux-only
 }

@@ -1,4 +1,5 @@
 use crate::models::settings::{WindowChrome, WindowChromeSettings};
+use crate::services::metrics;
 use serde::Serialize;
 use std::collections::HashMap;
 use std::sync::{OnceLock, RwLock};
@@ -83,11 +84,11 @@ fn metrics_enabled() -> bool {
     matches!(std::env::var("SNIPS_METRICS"), Ok(val) if !val.is_empty() && val != "0")
 }
 
-fn record_focus_metrics(label: &str, result: FocusResult) {
+fn record_focus_metrics(label: &str, result: FocusResult, window_manager: WindowManager) {
     if let Ok(mut guard) = focus_metrics_handle().write() {
         guard.insert(label.to_string(), result);
     }
-    record_focus_counters(label, result);
+    record_focus_counters(label, result, window_manager_label(window_manager));
 }
 
 fn get_focus_metrics(label: &str) -> Option<FocusResult> {
@@ -138,7 +139,7 @@ fn get_visibility_state(label: &str) -> Option<bool> {
         .and_then(|guard| guard.get(label).copied())
 }
 
-fn record_focus_counters(label: &str, result: FocusResult) {
+fn record_focus_counters(label: &str, result: FocusResult, window_manager: &'static str) {
     if !metrics_enabled() {
         return;
     }
@@ -151,6 +152,8 @@ fn record_focus_counters(label: &str, result: FocusResult) {
             entry.focus_failure_total = entry.focus_failure_total.saturating_add(1);
         }
     }
+
+    metrics::record_window_focus(window_manager, result.success);
 }
 
 fn get_focus_counters(label: &str) -> Option<WindowCounters> {
@@ -530,9 +533,10 @@ pub fn show_window<R: Runtime>(window: &WebviewWindow<R>) -> Result<(), AppError
     #[cfg(target_os = "linux")]
     std::thread::sleep(std::time::Duration::from_millis(20));
 
+    let window_manager = current_window_manager();
     let focus_result = focus_window_with_backoff(window);
     log_focus_metrics(window, &focus_result);
-    record_focus_metrics(window.label(), focus_result);
+    record_focus_metrics(window.label(), focus_result, window_manager);
     #[cfg(target_os = "linux")]
     crate::services::dbus_watchdog::record_focus_outcome(window.label(), focus_result.success);
     record_visibility_state(window.label(), true);
@@ -1121,5 +1125,13 @@ mod tests {
             !was_just_created,
             "get_or_create should return false for existing window"
         );
+    }
+}
+fn window_manager_label(window_manager: WindowManager) -> &'static str {
+    match window_manager {
+        WindowManager::Hyprland => "hyprland",
+        WindowManager::Sway => "sway",
+        WindowManager::River => "river",
+        WindowManager::Other => "other",
     }
 }

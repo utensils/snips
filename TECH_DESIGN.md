@@ -183,6 +183,20 @@ async fn update_snippet(
 async fn delete_snippet(id: i64) -> Result<(), String>
 ```
 
+---
+
+## QA & Testing
+
+### Manual Testing Matrix
+
+| Desktop / Compositor    | Focus Areas                                                                    | Owner                  | Cadence                       |
+| ----------------------- | ------------------------------------------------------------------------------ | ---------------------- | ----------------------------- |
+| Hyprland (Wayland)      | Window focus recovery, D-Bus shortcut toggles, quick-add capture               | James Brink            | Twice weekly + pre-release    |
+| GNOME Shell (Wayland)   | Tray menu, global shortcut fallback messaging, Omarchy palette sync            | Rotating QA volunteer  | Weekly                        |
+| KDE Plasma 6 (Wayland)  | Window chrome options, metrics emission, quick-add positioning                 | Rotating QA volunteer  | Bi-weekly                     |
+| GNOME on X11            | Search overlay behaviour, clipboard capture warnings, legacy shortcut handling | James Brink            | Before each tagged release    |
+| Omarchy reference image | Theme hook integration, managed wallpaper sync, auto-updater sanity            | Ops / Release engineer | Prior to distro image refresh |
+
 #### Search
 
 ```rust

@@ -16,7 +16,7 @@ use std::{
     sync::RwLock,
     time::{Duration, Instant},
 };
-use tauri::AppHandle;
+use tauri::{AppHandle, Runtime};
 use time::{format_description::well_known::Rfc3339, OffsetDateTime};
 use tokio::{
     io::{AsyncBufReadExt, BufReader},
@@ -85,7 +85,7 @@ fn record_note(note: String) {
 }
 
 /// Attempt to spawn `dbus-monitor` and monitor Hyprland keybind latency.
-pub fn start_watchdog(app: &AppHandle) {
+pub fn start_watchdog<R: Runtime>(_app: &AppHandle<R>) {
     if !should_enable_watchdog() {
         let mut guard = state_handle()
             .write()
@@ -135,7 +135,7 @@ pub fn start_watchdog(app: &AppHandle) {
     record_note("Hyprland shortcut watchdog initialized; monitoring dbus-monitor stream".into());
 
     // Keep the application handle alive in this scope.
-    let _ = app;
+    let _ = _app;
 }
 
 async fn run_monitor_loop() -> Result<(), String> {

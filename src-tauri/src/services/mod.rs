@@ -5,6 +5,7 @@ pub mod dbus_service;
 #[cfg(target_os = "linux")]
 pub mod dbus_watchdog;
 pub mod menubar;
+pub mod metrics;
 pub mod search;
 pub mod settings;
 pub mod shortcuts;
