@@ -248,9 +248,23 @@ pub fn show_window(window: &WebviewWindow) -> Result<(), AppError> {
 
 /// Hides a window
 pub fn hide_window(window: &WebviewWindow) -> Result<(), AppError> {
-    window
-        .hide()
-        .map_err(|e| AppError::TauriError(e.to_string()))?;
+    match window.hide() {
+        Ok(_) => {}
+        Err(err) => {
+            if cfg!(target_os = "linux") && err.to_string().contains("NotSupported") {
+                eprintln!(
+                    "[DEBUG] [window.rs] hide() unsupported for {}, closing instead: {}",
+                    window.label(),
+                    err
+                );
+                window
+                    .close()
+                    .map_err(|close_err| AppError::TauriError(close_err.to_string()))?;
+            } else {
+                return Err(AppError::TauriError(err.to_string()));
+            }
+        }
+    }
     Ok(())
 }
 
@@ -320,10 +334,13 @@ pub fn hide_search_window(app: &AppHandle) -> Result<(), AppError> {
 
 pub fn hide_quick_add_window(app: &AppHandle) -> Result<(), AppError> {
     eprintln!("[DEBUG] [window.rs] hide_quick_add_window() called");
-    let window = get_or_create_quick_add_window(app)?;
-    eprintln!("[DEBUG] [window.rs] Quick-add window obtained, hiding...");
-    hide_window(&window)?;
-    eprintln!("[DEBUG] [window.rs] Quick-add window hidden successfully");
+    if let Some(window) = app.get_webview_window(QUICK_ADD_WINDOW_LABEL) {
+        eprintln!("[DEBUG] [window.rs] Quick-add window obtained, hiding...");
+        hide_window(&window)?;
+        eprintln!("[DEBUG] [window.rs] Quick-add window hidden successfully");
+    } else {
+        eprintln!("[DEBUG] [window.rs] Quick-add window not found; nothing to hide");
+    }
     Ok(())
 }
 
