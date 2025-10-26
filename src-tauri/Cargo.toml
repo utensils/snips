@@ -14,6 +14,14 @@ edition = "2021"
 name = "snips_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
+[[bin]]
+name = "snips"
+path = "src/main.rs"
+
+[[bin]]
+name = "snips-theme"
+path = "src/bin/snips-theme.rs"
+
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
 
@@ -33,4 +41,3 @@ arboard = { version = "3.6", features = ["wayland-data-control"] }
 
 [target.'cfg(target_os = "linux")'.dependencies]
 zbus = "4.4"
-

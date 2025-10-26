@@ -93,9 +93,19 @@ sudo dnf install webkit2gtk4.1-devel
   windowrulev2 = center, title:^(Snips)$
   ```
 
-- Available D-Bus methods: `ShowQuickAdd`, `ShowSearch`, `ToggleSearch`, `ShowManagement`
+- Available D-Bus methods: `ShowQuickAdd`, `ShowSearch`, `ToggleSearch`, `ShowManagement`, `ReloadTheme`
 - **Note**: `ToggleSearch` is recommended for the search keybind as it matches the macOS/X11 toggle behavior
 - Quick Add uses native chrome on Linux; add or remove window rules above depending on whether you want it tiled or floating
+- To sync Omarchy's theme engine with Snips, install the provided hook:
+
+  ```bash
+  mkdir -p ~/.config/omarchy/hooks
+  ln -sf /path/to/snips/scripts/omarchy-theme-set-snips ~/.config/omarchy/hooks/theme-set
+  ```
+
+  The hook triggers the `ReloadTheme` D-Bus method so Snips refreshes its palette, icons, and wallpaper whenever Omarchy changes themes.
+
+- Command-line helpers (Linux only): `snips-theme list` enumerates Omarchy themes, and `snips-theme import <name>` generates a Snips CSS fragment without switching system themes.
 
 **⚠️ Linux Limitations (Active Development):**
 

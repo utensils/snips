@@ -1,3 +1,5 @@
+import { convertFileSrc, invoke } from '@tauri-apps/api/core';
+import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { platform } from '@tauri-apps/plugin-os';
 import { type ReactElement, useEffect, useState } from 'react';
@@ -6,6 +8,8 @@ import { QuickAddDialog } from '@/components/QuickAddDialog';
 import { SearchOverlay } from '@/components/SearchOverlay';
 import { SettingsWindow } from '@/components/SettingsWindow';
 import { useTheme } from '@/hooks/useTheme';
+import { applyOmarchyPalette } from '@/lib/theme';
+import type { ThemePalette } from '@/types/theme';
 
 /**
  * Main App component that routes to different views based on window label
@@ -18,6 +22,14 @@ function App(): ReactElement {
   useTheme();
 
   useEffect(() => {
+    let unlisten: UnlistenFn | undefined;
+
+    const applyPalette = (palette: ThemePalette | null): void => {
+      if (!palette) return;
+      const wallpaper = palette.wallpaper ? convertFileSrc(palette.wallpaper) : null;
+      applyOmarchyPalette(palette, wallpaper);
+    };
+
     const applyPlatform = async (): Promise<void> => {
       try {
         const platformName = await platform();
@@ -25,6 +37,21 @@ function App(): ReactElement {
         root.setAttribute('data-platform', platformName);
         const chrome = platformName === 'macos' ? 'frameless' : 'native';
         root.setAttribute('data-chrome', chrome);
+
+        if (platformName === 'linux') {
+          try {
+            const palette = await invoke<ThemePalette>('get_theme_palette');
+            applyPalette(palette);
+          } catch (err) {
+            if (import.meta.env.DEV) {
+              console.error('Failed to load Omarchy theme palette', err);
+            }
+          }
+
+          unlisten = await listen<ThemePalette>('appearance-updated', (event) => {
+            applyPalette(event.payload ?? null);
+          });
+        }
       } catch (err) {
         if (import.meta.env.DEV) {
           console.error('Failed to determine platform', err);
@@ -33,6 +60,10 @@ function App(): ReactElement {
     };
 
     applyPlatform();
+
+    return () => {
+      void unlisten?.();
+    };
   }, []);
 
   useEffect(() => {

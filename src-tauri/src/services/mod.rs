@@ -7,4 +7,5 @@ pub mod search;
 pub mod settings;
 pub mod shortcuts;
 pub mod tags;
+pub mod theme;
 pub mod window;

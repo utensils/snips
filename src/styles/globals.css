@@ -115,6 +115,10 @@ body {
     'rlig' 1,
     'calt' 1;
   font-family: var(--font-family-base);
+  background-image: var(--omarchy-wallpaper, none);
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
 }
 
 /* Screen reader only utility */

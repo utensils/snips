@@ -15,3 +15,6 @@ export type {
 
 // Storage types
 export type { BackupConfig, BackupInfo, DatabaseStats, ExportData, SnippetExport } from './storage';
+
+// Theme types
+export type { ThemePalette } from './theme';

@@ -5,6 +5,7 @@ pub mod settings_commands;
 pub mod shortcut_commands;
 pub mod snippet_commands;
 pub mod storage_commands;
+pub mod theme_commands;
 pub mod window_commands;
 
 // Re-export analytics commands

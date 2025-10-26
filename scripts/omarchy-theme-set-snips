@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+SERVICE="io.utensils.snips"
+OBJECT="/io/utensils/snips"
+INTERFACE="io.utensils.snips"
+
+if ! command -v dbus-send >/dev/null 2>&1; then
+  echo "dbus-send not found. Install dbus utilities to integrate Snips with Omarchy." >&2
+  exit 1
+fi
+
+dbus-send --session --type=method_call --dest="$SERVICE" \
+  "$OBJECT" "$INTERFACE.ReloadTheme" >/dev/null 2>&1 || {
+  echo "Failed to signal Snips to reload the Omarchy theme. Ensure Snips is running." >&2
+  exit 1
+}
+
+echo "Snips theme reload triggered via D-Bus."

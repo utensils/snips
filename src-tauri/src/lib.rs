@@ -6,7 +6,7 @@ pub mod utils;
 use services::backup_scheduler::{BackupScheduler, BackupSchedulerState};
 use services::database::{self, DbPool};
 use std::sync::Arc;
-use tauri::Manager;
+use tauri::{Emitter, Manager};
 use tokio::sync::{Mutex, RwLock};
 
 // Re-export commands for use in tests and external crates
@@ -128,6 +128,15 @@ pub fn run() {
                 tauri::async_runtime::spawn(async move {
                     services::dbus_service::init_dbus_service(app_handle).await;
                 });
+
+                if let Ok(palette) = services::theme::load_omarchy_theme_palette() {
+                    if let Err(err) = app.emit("appearance-updated", &palette) {
+                        eprintln!(
+                            "[WARN] [theme] Failed to emit initial appearance palette: {}",
+                            err
+                        );
+                    }
+                }
             }
 
             // Set up menu event handlers
@@ -196,7 +205,10 @@ pub fn run() {
             commands::storage_commands::import_from_json,
             commands::storage_commands::list_backups,
             commands::storage_commands::get_backup_config,
-            commands::storage_commands::update_backup_config
+            commands::storage_commands::update_backup_config,
+            commands::theme_commands::get_theme_palette,
+            commands::theme_commands::list_omarchy_themes,
+            commands::theme_commands::import_omarchy_theme
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

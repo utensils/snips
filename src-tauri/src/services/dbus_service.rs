@@ -10,6 +10,9 @@ use tauri::AppHandle;
 use zbus::{interface, ConnectionBuilder};
 
 #[cfg(target_os = "linux")]
+use tauri::Emitter;
+
+#[cfg(target_os = "linux")]
 use crate::services::window;
 
 /// D-Bus interface for Snips
@@ -110,6 +113,35 @@ impl SnipsDBusInterface {
             }
         }
     }
+
+    /// Reload the current Omarchy palette and notify all windows
+    async fn reload_theme(&self) -> zbus::fdo::Result<()> {
+        eprintln!("[DEBUG] [dbus_service] ReloadTheme method called via D-Bus");
+
+        match crate::services::theme::load_omarchy_theme_palette() {
+            Ok(palette) => {
+                if let Err(err) = self.app.emit("appearance-updated", &palette) {
+                    eprintln!(
+                        "[ERROR] [dbus_service] Failed to emit appearance update: {}",
+                        err
+                    );
+                    return Err(zbus::fdo::Error::Failed(format!(
+                        "Failed to notify windows about new theme: {}",
+                        err
+                    )));
+                }
+
+                Ok(())
+            }
+            Err(e) => {
+                eprintln!("[ERROR] [dbus_service] ReloadTheme failed: {}", e);
+                Err(zbus::fdo::Error::Failed(format!(
+                    "Failed to reload Omarchy theme: {}",
+                    e
+                )))
+            }
+        }
+    }
 }
 
 /// Initialize the D-Bus service
@@ -153,7 +185,9 @@ pub async fn init_dbus_service(app: AppHandle) {
             eprintln!("[INFO] [dbus_service] D-Bus service registered successfully");
             eprintln!("[INFO] [dbus_service] Available at: io.utensils.snips");
             eprintln!("[INFO] [dbus_service] Object path: /io/utensils/snips");
-            eprintln!("[INFO] [dbus_service] Methods: ShowQuickAdd, ShowSearch, ToggleSearch, ShowManagement");
+            eprintln!(
+                "[INFO] [dbus_service] Methods: ShowQuickAdd, ShowSearch, ToggleSearch, ShowManagement, ReloadTheme"
+            );
 
             // Keep the connection alive indefinitely in a background task
             // zbus requires the connection to stay alive to process D-Bus messages
