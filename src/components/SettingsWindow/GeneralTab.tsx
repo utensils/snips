@@ -4,6 +4,7 @@ import { type ReactElement, useEffect, useState } from 'react';
 
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { Checkbox } from '@/components/ui/Checkbox';
 import { Spinner } from '@/components/ui/Spinner';
 import { getSettings, updateSettings } from '@/lib/api';
 import type { AppSettings, Theme, WindowChromePreference } from '@/types/settings';
@@ -128,6 +129,35 @@ export function GeneralTab(): ReactElement {
       setTimeout(() => setSaveSuccess(false), 3000);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update window chrome');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleQuickWindowFloatingChange = async (enabled: boolean): Promise<void> => {
+    if (!settings) return;
+
+    try {
+      setIsSaving(true);
+      setError(null);
+      setSaveSuccess(false);
+
+      const updatedSettings: AppSettings = {
+        ...settings,
+        quick_window_preferences: {
+          ...settings.quick_window_preferences,
+          float_on_tiling: enabled,
+        },
+      };
+
+      await updateSettings(updatedSettings);
+      setSettings(updatedSettings);
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 3000);
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : 'Failed to update quick window behaviour preference'
+      );
     } finally {
       setIsSaving(false);
     }
@@ -277,6 +307,33 @@ export function GeneralTab(): ReactElement {
               );
             })}
           </div>
+
+          {currentPlatform === 'linux' && (
+            <div className="rounded-xl border border-border/60 bg-surface-0/85 p-4 supports-[backdrop-filter]:backdrop-blur-sm">
+              <label
+                htmlFor="keep-quick-windows-floating"
+                className="flex items-start gap-3 cursor-pointer"
+              >
+                <Checkbox
+                  id="keep-quick-windows-floating"
+                  checked={settings.quick_window_preferences?.float_on_tiling ?? true}
+                  onChange={(event) => handleQuickWindowFloatingChange(event.target.checked)}
+                  disabled={isSaving}
+                  aria-describedby="keep-quick-windows-floating-description"
+                />
+                <div className="space-y-1">
+                  <p className="text-sm font-medium text-foreground">Keep quick windows floating</p>
+                  <p
+                    id="keep-quick-windows-floating-description"
+                    className="text-xs text-muted-foreground"
+                  >
+                    Search and Quick Add stay above tiling window managers (Hyprland, Sway, River).
+                    Disable if you prefer them to tile with the rest of your workspace.
+                  </p>
+                </div>
+              </label>
+            </div>
+          )}
         </div>
       </Card>
 

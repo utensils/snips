@@ -49,6 +49,10 @@ const baseSettings = {
     linux: 'native',
     windows: 'native',
   },
+  quick_window_preferences: {
+    float_on_tiling: true,
+    per_wm_overrides: {},
+  },
 } as AppSettings;
 
 describe('useThemeController', () => {

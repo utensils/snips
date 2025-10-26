@@ -49,6 +49,7 @@ impl SettingsService {
         self.validate_settings(&settings)?;
 
         window::update_window_chrome_settings(&settings.window_chrome);
+        window::update_quick_window_preferences(&settings.quick_window_preferences);
 
         // Serialize to JSON
         let settings_json = serde_json::to_string(&settings)?;
@@ -139,12 +140,14 @@ impl SettingsService {
                 let settings: AppSettings =
                     serde_json::from_str(&json).map_err(AppError::Serialization)?;
                 window::update_window_chrome_settings(&settings.window_chrome);
+                window::update_quick_window_preferences(&settings.quick_window_preferences);
                 Ok(settings)
             }
             None => {
                 // Return default settings and save them
                 let defaults = AppSettings::default();
                 window::update_window_chrome_settings(&defaults.window_chrome);
+                window::update_quick_window_preferences(&defaults.quick_window_preferences);
                 self.save_defaults(&defaults).await?;
                 Ok(defaults)
             }

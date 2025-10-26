@@ -1,4 +1,4 @@
-use crate::models::settings::{WindowChrome, WindowChromeSettings};
+use crate::models::settings::{QuickWindowPreferences, WindowChrome, WindowChromeSettings};
 use crate::services::metrics;
 use serde::Serialize;
 use std::collections::HashMap;
@@ -53,6 +53,7 @@ enum WindowManager {
 }
 
 static WINDOW_CHROME_STATE: OnceLock<RwLock<WindowChromeSettings>> = OnceLock::new();
+static QUICK_WINDOW_PREFS_STATE: OnceLock<RwLock<QuickWindowPreferences>> = OnceLock::new();
 #[cfg(target_os = "linux")]
 static WINDOW_MANAGER_STATE: OnceLock<WindowManager> = OnceLock::new();
 static FOCUS_METRICS_STATE: OnceLock<RwLock<HashMap<String, FocusResult>>> = OnceLock::new();
@@ -62,6 +63,10 @@ static WINDOW_COUNTERS_STATE: OnceLock<RwLock<HashMap<String, WindowCounters>>> 
 
 fn window_chrome_settings_handle() -> &'static RwLock<WindowChromeSettings> {
     WINDOW_CHROME_STATE.get_or_init(|| RwLock::new(WindowChromeSettings::default()))
+}
+
+fn quick_window_preferences_handle() -> &'static RwLock<QuickWindowPreferences> {
+    QUICK_WINDOW_PREFS_STATE.get_or_init(|| RwLock::new(QuickWindowPreferences::default()))
 }
 
 fn focus_metrics_handle() -> &'static RwLock<HashMap<String, FocusResult>> {
@@ -173,6 +178,40 @@ pub fn update_window_chrome_settings(settings: &WindowChromeSettings) {
     *guard = settings.clone();
 }
 
+pub fn update_quick_window_preferences(preferences: &QuickWindowPreferences) {
+    let mut guard = quick_window_preferences_handle()
+        .write()
+        .expect("quick window preferences lock poisoned");
+    *guard = preferences.clone();
+}
+
+fn quick_windows_should_float() -> bool {
+    #[cfg(target_os = "linux")]
+    {
+        let manager = current_window_manager();
+        let guard = quick_window_preferences_handle()
+            .read()
+            .expect("quick window preferences lock poisoned");
+
+        match manager {
+            WindowManager::Hyprland | WindowManager::Sway | WindowManager::River => {
+                let label = window_manager_label(manager);
+                guard
+                    .per_wm_overrides
+                    .get(label)
+                    .copied()
+                    .unwrap_or(guard.float_on_tiling)
+            }
+            WindowManager::Other => true,
+        }
+    }
+
+    #[cfg(not(target_os = "linux"))]
+    {
+        true
+    }
+}
+
 fn window_chrome_preference() -> WindowChrome {
     let guard = window_chrome_settings_handle()
         .read()
@@ -237,27 +276,31 @@ fn apply_platform_window_profile<'a, R: tauri::Runtime, M: Manager<R>>(
 ) -> tauri::WebviewWindowBuilder<'a, R, M> {
     match profile {
         WindowProfile::Overlay => {
+            let should_float = quick_windows_should_float();
             let builder = if cfg!(target_os = "linux") {
                 builder
                     .resizable(false)
                     .skip_taskbar(true)
-                    .always_on_top(true)
+                    .always_on_top(should_float)
                     .transparent(false)
             } else {
                 builder
                     .resizable(false)
                     .skip_taskbar(true)
-                    .always_on_top(true)
+                    .always_on_top(should_float)
                     .transparent(true)
             };
             apply_window_chrome(builder)
         }
-        WindowProfile::Dialog => apply_window_chrome(
-            builder
-                .resizable(false)
-                .always_on_top(true)
-                .skip_taskbar(true),
-        ),
+        WindowProfile::Dialog => {
+            let should_float = quick_windows_should_float();
+            apply_window_chrome(
+                builder
+                    .resizable(false)
+                    .always_on_top(should_float)
+                    .skip_taskbar(true),
+            )
+        }
         WindowProfile::Standard => apply_window_chrome(builder.resizable(true).skip_taskbar(false)),
     }
 }
@@ -346,6 +389,20 @@ pub const MANAGEMENT_WINDOW_LABEL: &str = "management";
 pub const QUICK_ADD_WINDOW_LABEL: &str = "quick-add";
 pub const SETTINGS_WINDOW_LABEL: &str = "settings";
 
+fn expected_on_top_for_label(label: &str) -> Option<bool> {
+    match label {
+        SEARCH_WINDOW_LABEL | QUICK_ADD_WINDOW_LABEL => Some(quick_windows_should_float()),
+        _ => None,
+    }
+}
+
+fn refresh_on_top_state<R: Runtime>(window: &WebviewWindow<R>) {
+    if let Some(expected_on_top) = expected_on_top_for_label(window.label()) {
+        let _ = window.set_always_on_top(expected_on_top);
+        record_expected_on_top(window.label(), expected_on_top);
+    }
+}
+
 /// Gets the search window handle, creating it if it doesn't exist
 /// WAYLAND FIX: Create on-demand instead of pre-created with visible:false
 pub fn get_or_create_search_window<R: Runtime>(
@@ -373,8 +430,7 @@ pub fn get_or_create_search_window<R: Runtime>(
         .build()
         .map_err(|e| AppError::TauriError(format!("Failed to create search window: {}", e)))?;
 
-    let _ = window.set_always_on_top(true);
-    record_expected_on_top(SEARCH_WINDOW_LABEL, true);
+    refresh_on_top_state(&window);
     record_visibility_state(SEARCH_WINDOW_LABEL, false);
 
     Ok(window)
@@ -440,9 +496,7 @@ pub fn get_or_create_quick_add_window<R: Runtime>(
         .build()
         .map_err(|e| AppError::TauriError(format!("Failed to create Quick Add window: {}", e)))?;
 
-    let expected_on_top = true;
-    let _ = window.set_always_on_top(expected_on_top);
-    record_expected_on_top(QUICK_ADD_WINDOW_LABEL, expected_on_top);
+    refresh_on_top_state(&window);
     record_visibility_state(QUICK_ADD_WINDOW_LABEL, false);
 
     Ok(window)
@@ -482,6 +536,8 @@ pub fn get_or_create_settings_window<R: Runtime>(
 
 /// Shows a window and brings it to focus
 pub fn show_window<R: Runtime>(window: &WebviewWindow<R>) -> Result<(), AppError> {
+    refresh_on_top_state(window);
+
     eprintln!(
         "[DEBUG] [window.rs] show_window({}): is_visible={:?}, is_focused={:?}",
         window.label(),

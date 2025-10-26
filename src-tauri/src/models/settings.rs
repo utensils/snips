@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 /// Storage type for snippets
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -61,6 +62,27 @@ impl Default for WindowChromeSettings {
             macos: WindowChrome::FramelessShadow,
             linux: WindowChrome::Native,
             windows: WindowChrome::Native,
+        }
+    }
+}
+
+fn default_true() -> bool {
+    true
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct QuickWindowPreferences {
+    #[serde(default = "default_true")]
+    pub float_on_tiling: bool,
+    #[serde(default)]
+    pub per_wm_overrides: HashMap<String, bool>,
+}
+
+impl Default for QuickWindowPreferences {
+    fn default() -> Self {
+        Self {
+            float_on_tiling: true,
+            per_wm_overrides: HashMap::new(),
         }
     }
 }
@@ -172,6 +194,8 @@ pub struct AppSettings {
     pub privacy_settings: PrivacySettings,
     #[serde(default)]
     pub window_chrome: WindowChromeSettings,
+    #[serde(default)]
+    pub quick_window_preferences: QuickWindowPreferences,
     #[serde(default)]
     pub cloud_sync_settings: Option<CloudSyncSettings>,
 }

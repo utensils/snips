@@ -56,6 +56,10 @@ describe('GeneralTab - Theme Selection Integration', () => {
       linux: 'native',
       windows: 'native',
     },
+    quick_window_preferences: {
+      float_on_tiling: true,
+      per_wm_overrides: {},
+    },
   };
 
   beforeEach(() => {
@@ -296,6 +300,38 @@ describe('GeneralTab - Theme Selection Integration', () => {
       expect(invokeMock).toHaveBeenCalledWith('copy_to_clipboard', {
         text: expect.stringContaining('Quick Add Snippet'),
       });
+    });
+  });
+
+  it('allows Linux users to disable floating quick windows', async () => {
+    const user = userEvent.setup();
+    platformMock.mockReturnValue('linux');
+
+    render(<GeneralTab />);
+
+    await waitFor(() => {
+      expect(getSettings).toHaveBeenCalled();
+    });
+
+    const toggle = screen.getByRole('checkbox', {
+      name: /Keep quick windows floating/i,
+    }) as HTMLInputElement;
+    expect(toggle).toBeChecked();
+
+    await user.click(toggle);
+
+    await waitFor(() => {
+      expect(updateSettings).toHaveBeenCalledWith({
+        ...mockSettings,
+        quick_window_preferences: {
+          ...mockSettings.quick_window_preferences,
+          float_on_tiling: false,
+        },
+      });
+    });
+
+    await waitFor(() => {
+      expect(toggle).not.toBeChecked();
     });
   });
 });

@@ -19,6 +19,11 @@ export interface WindowChromeSettings {
   windows: WindowChromePreference;
 }
 
+export interface QuickWindowPreferences {
+  float_on_tiling: boolean;
+  per_wm_overrides: Record<string, boolean>;
+}
+
 /**
  * Conflict resolution strategy for sync operations
  */
@@ -74,6 +79,7 @@ export interface AppSettings {
   search_settings: SearchSettings;
   privacy_settings: PrivacySettings;
   window_chrome: WindowChromeSettings;
+  quick_window_preferences: QuickWindowPreferences;
   cloud_sync_settings?: CloudSyncSettings;
 }
 
