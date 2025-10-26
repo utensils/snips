@@ -146,11 +146,14 @@ export function TagManagement({
     try {
       // Update color if changed
       if (colorChanged) {
+        console.warn('Updating tag color:', editingTag.name, 'to', newTagColor);
         await updateTagColor(editingTag.name, newTagColor);
+        console.warn('Tag color updated successfully');
       }
 
       // Update name if changed (must be done after color update)
       if (nameChanged) {
+        console.warn('Updating tag name from', editingTag.name, 'to', newTagName.trim());
         const affectedSnippets = snippets.filter((s) => editingTag.snippetIds.includes(s.id));
 
         await Promise.all(
@@ -166,6 +169,7 @@ export function TagManagement({
             });
           })
         );
+        console.warn('Tag name updated successfully');
       }
 
       // Reload tags to get updated data
@@ -176,6 +180,7 @@ export function TagManagement({
       onUpdate();
     } catch (err) {
       console.error('Failed to update tag:', err);
+      alert(`Failed to update tag: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setIsProcessing(false);
     }

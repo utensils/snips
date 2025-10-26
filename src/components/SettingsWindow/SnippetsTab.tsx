@@ -56,7 +56,7 @@ export function SnippetsTab(): React.ReactElement {
   const [snippets, setSnippets] = useState<Snippet[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  const { getTagColor } = useTags();
+  const { getTagColor, reload: reloadTags } = useTags();
 
   // UI state
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -86,6 +86,8 @@ export function SnippetsTab(): React.ReactElement {
       setError(null);
       const data = await getAllSnippets();
       setSnippets(data);
+      // Also reload tags to ensure colors are up to date
+      await reloadTags();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load snippets');
       console.error('Failed to load snippets:', err);

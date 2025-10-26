@@ -23,5 +23,5 @@ export async function getTags(): Promise<Tag[]> {
  * @returns Promise that resolves when update is complete
  */
 export async function updateTagColor(tagName: string, color: string): Promise<void> {
-  return invoke<void>('update_tag_color_cmd', { tag_name: tagName, color });
+  return invoke<void>('update_tag_color_cmd', { tagName, color });
 }
