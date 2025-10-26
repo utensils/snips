@@ -48,3 +48,5 @@ prometheus = "0.13"
 
 [target.'cfg(target_os = "linux")'.dependencies]
 zbus = "4.4"
+ashpd = { version = "0.7", default-features = false, features = ["tokio"] }
+libc = "0.2"

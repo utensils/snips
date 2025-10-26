@@ -8,10 +8,11 @@ Flatpak/Snap sandboxes block direct X11/Wayland clipboard access. The `org.freed
 
 The `ashpd` crate wraps these primitives but still requires asynchronous orchestration between `Request<T>` responses and `Session` lifecycle. We also need to decide how to integrate this with the existing `arboard` implementation without holding GTK locks (previous attempts mixed GTK 3/4 symbols).
 
-## Proposed Next Steps
+## Implementation Notes (2025-02-15)
 
-- Build a dedicated async helper in `clipboard_commands.rs` that, when `FLATPAK_ID` is set, creates a clipboard session via `ashpd::desktop::clipboard::Clipboard::new()` and reads text using `selection_read`.
-- Mirror the flow for writes by streaming to the FD returned by `selection_write` and acknowledging with `selection_write_done`.
-- Cache the portal availability in `probe_clipboard_support` so we can surface a meaningful warning if the session negotiation fails.
+- A sandbox-aware pipeline now lives in `portal_clipboard_read_text`/`portal_clipboard_write_text` (see `clipboard_commands.rs`). It synthesises a unique session path and talks to `org.freedesktop.portal.Clipboard` via `zbus`, duplicating the returned file descriptors before streaming data through Tokio.
+- The helpers automatically fall back to `arboard` when the portal negotiation fails, so non-sandboxed environments retain the existing behaviour.
+- `probe_clipboard_support` now attempts a portal read whenever `FLATPAK_ID`/`SNAP` is detected, setting the `portal_supported` flag and surfacing detailed errors otherwise.
+- Clipboard writes use `SetSelection → SelectionWrite → SelectionWriteDone`, acknowledging serial `0` and closing the portal session regardless of success, so sandboxed builds gain a working “copy” path.
 
-Until we finish this integration the Linux sandbox story still relies on omnipresent PRIMARY/CLIPBOARD access, so Settings continues to warn users when the portal fallback cannot be negotiated.
+Future work: monitor `SelectionTransfer` signals to honour compositor-initiated requests (for richer MIME types) and instrument metrics so we know when portal round-trips fail in the wild.

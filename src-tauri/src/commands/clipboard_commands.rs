@@ -2,6 +2,206 @@ use crate::utils::error::AppError;
 use serde::Serialize;
 use tauri::AppHandle;
 
+#[cfg(target_os = "linux")]
+use std::os::unix::io::{AsRawFd, FromRawFd};
+
+#[cfg(target_os = "linux")]
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
+#[cfg(target_os = "linux")]
+const PORTAL_MIME_TYPE: &str = "text/plain;charset=utf-8";
+
+#[cfg(target_os = "linux")]
+#[inline]
+fn is_sandboxed_env() -> bool {
+    std::env::var_os("FLATPAK_ID").is_some() || std::env::var_os("SNAP").is_some()
+}
+
+#[cfg(target_os = "linux")]
+async fn portal_clipboard_read_text() -> Result<String, AppError> {
+    use std::collections::HashMap;
+
+    use zbus::{
+        zvariant::{OwnedFd, OwnedObjectPath, Value},
+        Connection, Proxy,
+    };
+
+    let connection = Connection::session()
+        .await
+        .map_err(|err| AppError::External(format!("Failed to open DBus session: {err}")))?;
+
+    let unique_name = connection
+        .unique_name()
+        .ok_or_else(|| AppError::External("Missing DBus unique name".to_string()))?;
+    let identifier = unique_name.trim_start_matches(':').replace('.', "_");
+    let token = format!(
+        "snips_{:x}",
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_micros()
+    );
+    let session_path_str = format!("/org/freedesktop/portal/desktop/session/{identifier}/{token}");
+    let session_path = OwnedObjectPath::try_from(session_path_str.clone()).map_err(|err| {
+        AppError::External(format!("Failed to construct portal session path: {err}"))
+    })?;
+
+    let clipboard_proxy = Proxy::new(
+        &connection,
+        "org.freedesktop.portal.Desktop",
+        "/org/freedesktop/portal/desktop",
+        "org.freedesktop.portal.Clipboard",
+    )
+    .await
+    .map_err(|err| AppError::External(format!("Failed to build clipboard proxy: {err}")))?;
+
+    let session_proxy = Proxy::new(
+        &connection,
+        "org.freedesktop.portal.Desktop",
+        session_path.clone(),
+        "org.freedesktop.portal.Session",
+    )
+    .await
+    .map_err(|err| AppError::External(format!("Failed to build session proxy: {err}")))?;
+
+    let options: HashMap<&str, Value<'_>> = HashMap::new();
+    clipboard_proxy
+        .call_method("RequestClipboard", &(session_path.as_ref(), options))
+        .await
+        .map_err(|err| AppError::External(format!("Portal RequestClipboard failed: {err}")))?;
+
+    let message = clipboard_proxy
+        .call_method("SelectionRead", &(session_path.as_ref(), PORTAL_MIME_TYPE))
+        .await
+        .map_err(|err| AppError::External(format!("Portal SelectionRead failed: {err}")))?;
+
+    let fd: OwnedFd = message
+        .body()
+        .deserialize()
+        .map_err(|err| AppError::External(format!("Invalid SelectionRead response: {err}")))?;
+
+    let raw_fd = fd.as_raw_fd();
+    let dup_fd = unsafe { libc::dup(raw_fd) };
+    if dup_fd < 0 {
+        return Err(AppError::External(format!(
+            "Failed to duplicate portal clipboard descriptor: {}",
+            std::io::Error::last_os_error()
+        )));
+    }
+    let std_file = unsafe { std::fs::File::from_raw_fd(dup_fd) };
+    let mut reader = tokio::fs::File::from_std(std_file);
+    let mut buffer = Vec::new();
+
+    reader.read_to_end(&mut buffer).await.map_err(|err| {
+        AppError::External(format!("Failed to read portal clipboard stream: {err}"))
+    })?;
+
+    let _ = session_proxy.call_method("Close", &()).await;
+
+    String::from_utf8(buffer)
+        .map_err(|err| AppError::External(format!("Portal clipboard data not UTF-8: {err}")))
+}
+
+#[cfg(target_os = "linux")]
+async fn portal_clipboard_write_text(text: &str) -> Result<(), AppError> {
+    use std::collections::HashMap;
+
+    use zbus::{
+        zvariant::{OwnedFd, OwnedObjectPath, Value},
+        Connection, Proxy,
+    };
+
+    let connection = Connection::session()
+        .await
+        .map_err(|err| AppError::External(format!("Failed to open DBus session: {err}")))?;
+
+    let unique_name = connection
+        .unique_name()
+        .ok_or_else(|| AppError::External("Missing DBus unique name".to_string()))?;
+    let identifier = unique_name.trim_start_matches(':').replace('.', "_");
+    let token = format!(
+        "snips_{:x}",
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_micros()
+    );
+    let session_path_str = format!("/org/freedesktop/portal/desktop/session/{identifier}/{token}");
+    let session_path = OwnedObjectPath::try_from(session_path_str.clone()).map_err(|err| {
+        AppError::External(format!("Failed to construct portal session path: {err}"))
+    })?;
+
+    let clipboard_proxy = Proxy::new(
+        &connection,
+        "org.freedesktop.portal.Desktop",
+        "/org/freedesktop/portal/desktop",
+        "org.freedesktop.portal.Clipboard",
+    )
+    .await
+    .map_err(|err| AppError::External(format!("Failed to build clipboard proxy: {err}")))?;
+
+    let session_proxy = Proxy::new(
+        &connection,
+        "org.freedesktop.portal.Desktop",
+        session_path.clone(),
+        "org.freedesktop.portal.Session",
+    )
+    .await
+    .map_err(|err| AppError::External(format!("Failed to build session proxy: {err}")))?;
+
+    let options: HashMap<&str, Value<'_>> = HashMap::new();
+    clipboard_proxy
+        .call_method("RequestClipboard", &(session_path.as_ref(), options))
+        .await
+        .map_err(|err| AppError::External(format!("Portal RequestClipboard failed: {err}")))?;
+
+    clipboard_proxy
+        .call_method(
+            "SetSelection",
+            &(session_path.as_ref(), &[PORTAL_MIME_TYPE]),
+        )
+        .await
+        .map_err(|err| AppError::External(format!("Portal SetSelection failed: {err}")))?;
+
+    let message = clipboard_proxy
+        .call_method("SelectionWrite", &(session_path.as_ref(), 0u32))
+        .await
+        .map_err(|err| AppError::External(format!("Portal SelectionWrite failed: {err}")))?;
+
+    let fd: OwnedFd = message
+        .body()
+        .deserialize()
+        .map_err(|err| AppError::External(format!("Invalid SelectionWrite response: {err}")))?;
+
+    let raw_fd = fd.as_raw_fd();
+    let dup_fd = unsafe { libc::dup(raw_fd) };
+    if dup_fd < 0 {
+        return Err(AppError::External(format!(
+            "Failed to duplicate portal clipboard descriptor: {}",
+            std::io::Error::last_os_error()
+        )));
+    }
+    let std_file = unsafe { std::fs::File::from_raw_fd(dup_fd) };
+    let mut writer = tokio::fs::File::from_std(std_file);
+    writer
+        .write_all(text.as_bytes())
+        .await
+        .map_err(|err| AppError::External(format!("Failed to stream clipboard contents: {err}")))?;
+    writer
+        .flush()
+        .await
+        .map_err(|err| AppError::External(format!("Failed to flush clipboard contents: {err}")))?;
+
+    clipboard_proxy
+        .call_method("SelectionWriteDone", &(session_path.as_ref(), 0u32, true))
+        .await
+        .map_err(|err| AppError::External(format!("Portal SelectionWriteDone failed: {err}")))?;
+
+    let _ = session_proxy.call_method("Close", &()).await;
+
+    Ok(())
+}
+
 /// Get the currently selected text from the active application.
 ///
 /// On macOS, this uses AppleScript to simulate Cmd+C and read the clipboard.
@@ -213,6 +413,21 @@ async fn get_clipboard_content() -> Result<String, String> {
 
         eprintln!("[DEBUG] get_clipboard_content: Creating clipboard");
 
+        if is_sandboxed_env() {
+            match portal_clipboard_read_text().await {
+                Ok(text) => {
+                    eprintln!("[DEBUG] get_clipboard_content: using portal clipboard read");
+                    return Ok(text);
+                }
+                Err(err) => {
+                    eprintln!(
+                        "[DEBUG] get_clipboard_content: portal read failed, falling back: {}",
+                        err
+                    );
+                }
+            }
+        }
+
         let mut clipboard = Clipboard::new().map_err(|e| {
             eprintln!(
                 "[DEBUG] get_clipboard_content: Failed to create clipboard: {}",
@@ -309,8 +524,14 @@ pub async fn probe_clipboard_support() -> Result<ClipboardProbeResult, String> {
         }
 
         if result.sandboxed {
-            result.portal_error =
-                Some("GTK portal fallback disabled to avoid GTK version conflicts".to_string());
+            match portal_clipboard_read_text().await {
+                Ok(_) => {
+                    result.portal_supported = true;
+                }
+                Err(err) => {
+                    result.portal_error = Some(err.to_string());
+                }
+            }
         }
 
         Ok(result)
@@ -367,6 +588,21 @@ async fn set_clipboard_content(text: &str) -> Result<(), String> {
             "[DEBUG] set_clipboard_content: Setting text: {:?}",
             &text[..text.len().min(50)]
         );
+
+        if is_sandboxed_env() {
+            match portal_clipboard_write_text(text).await {
+                Ok(_) => {
+                    eprintln!("[DEBUG] set_clipboard_content: wrote via portal selection");
+                    return Ok(());
+                }
+                Err(err) => {
+                    eprintln!(
+                        "[DEBUG] set_clipboard_content: portal write failed, falling back: {}",
+                        err
+                    );
+                }
+            }
+        }
 
         let mut clipboard = Clipboard::new().map_err(|e| {
             eprintln!(
