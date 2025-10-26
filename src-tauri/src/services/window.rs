@@ -866,40 +866,24 @@ pub fn show_quick_add_window<R: Runtime>(app: &AppHandle<R>) -> Result<(), AppEr
         }
     );
 
-    let delay_ms = if quick_add_exists { 200 } else { 1000 };
-
     // If no text was captured, surface error to the webview so the dialog can react
     let text = match selected_text {
         Ok(t) => t,
         Err(e) => {
-            let message = e.to_string();
             eprintln!(
-                "[DEBUG] [window.rs] No text selected, surfacing error to quick-add window: {}",
-                message
+                "[DEBUG] [window.rs] No text selected, aborting quick-add window: {}",
+                e
             );
-
             clear_quick_add_capture();
-
-            let window = get_or_create_quick_add_window(app)?;
-            center_window(&window)?;
-            show_window(&window)?;
-
-            let app_clone = app.clone();
-            std::thread::spawn(move || {
-                std::thread::sleep(std::time::Duration::from_millis(delay_ms));
-                if let Err(err) =
-                    app_clone.emit_to(QUICK_ADD_WINDOW_LABEL, "selected-text-error", message)
-                {
-                    eprintln!(
-                        "[DEBUG] [window.rs] Failed to emit selected-text-error event: {}",
-                        err
-                    );
-                }
-            });
-
-            return Ok(());
+            return Err(e);
         }
     };
+
+    if text.trim().is_empty() {
+        eprintln!("[DEBUG] [window.rs] Captured text is empty after trimming, aborting quick add");
+        clear_quick_add_capture();
+        return Err(AppError::NotFound("No text selected".to_string()));
+    }
 
     eprintln!("[DEBUG] [window.rs] Getting quick-add window");
 
@@ -950,6 +934,10 @@ pub fn show_quick_add_window<R: Runtime>(app: &AppHandle<R>) -> Result<(), AppEr
 /// Synchronously captures selected text using clipboard method
 /// This must be called BEFORE the window takes focus
 fn capture_selected_text_sync() -> Result<String, AppError> {
+    if std::env::var_os("SNIPS_FORCE_CAPTURE_ERROR").is_some() {
+        return Err(AppError::NotFound("No text selected".to_string()));
+    }
+
     #[cfg(target_os = "macos")]
     {
         use std::process::Command;

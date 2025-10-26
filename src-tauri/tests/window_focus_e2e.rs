@@ -7,10 +7,13 @@
 
 use snips_lib::models::settings::QuickWindowPreferences;
 use snips_lib::services::window::{
-    collect_window_diagnostics, hide_quick_add_window, hide_search_window, show_search_window,
-    show_settings_window, toggle_search_window, update_quick_window_preferences, WindowDiagnostic,
-    QUICK_ADD_WINDOW_LABEL, SEARCH_WINDOW_LABEL, SETTINGS_WINDOW_LABEL,
+    collect_window_diagnostics, hide_quick_add_window, hide_search_window, show_quick_add_window,
+    show_search_window, show_settings_window, toggle_search_window,
+    update_quick_window_preferences, WindowDiagnostic, QUICK_ADD_WINDOW_LABEL, SEARCH_WINDOW_LABEL,
+    SETTINGS_WINDOW_LABEL,
 };
+use snips_lib::utils::error::AppError;
+use tauri::Manager;
 
 fn build_mock_app() -> tauri::App<tauri::test::MockRuntime> {
     tauri::test::mock_builder()
@@ -127,6 +130,21 @@ fn window_sequence_reports_expected_visibility() {
 }
 
 #[test]
+fn quick_add_window_errors_without_selection() {
+    std::env::set_var("SNIPS_FORCE_CAPTURE_ERROR", "1");
+    snips_lib::services::window::reset_focus_metrics_for_tests();
+
+    let app = build_mock_app();
+    let handle = app.handle();
+
+    let result = show_quick_add_window(&handle);
+    assert!(matches!(result, Err(AppError::NotFound(_))));
+    assert!(app.get_webview_window(QUICK_ADD_WINDOW_LABEL).is_none());
+
+    std::env::remove_var("SNIPS_FORCE_CAPTURE_ERROR");
+}
+
+#[test]
 fn toggle_search_window_creates_and_shows_on_first_call() {
     std::env::set_var("HYPRLAND_INSTANCE_SIGNATURE", "snips-test-toggle");
     std::env::set_var("SNIPS_ASSUME_PROFILE_TOP", "1");
@@ -149,17 +167,4 @@ fn toggle_search_window_creates_and_shows_on_first_call() {
     std::env::remove_var("HYPRLAND_INSTANCE_SIGNATURE");
     std::env::remove_var("SNIPS_ASSUME_PROFILE_TOP");
     std::env::remove_var("SNIPS_ASSUME_WINDOW_VISIBILITY");
-}
-
-#[cfg(target_os = "linux")]
-#[test]
-fn show_quick_add_window_handles_empty_selection() {
-    let app = build_mock_app();
-    let handle = app.handle();
-
-    let result = snips_lib::services::window::show_quick_add_window(&handle);
-    assert!(
-        result.is_ok(),
-        "quick add window should surface error banner without failing D-Bus"
-    );
 }
