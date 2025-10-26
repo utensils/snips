@@ -1,4 +1,5 @@
 use crate::models::settings::AppSettings;
+use crate::services::window;
 use crate::utils::error::AppError;
 use crate::utils::time::current_timestamp;
 use sqlx::SqlitePool;
@@ -46,6 +47,8 @@ impl SettingsService {
     pub async fn update_settings(&self, settings: AppSettings) -> Result<(), AppError> {
         // Validate settings
         self.validate_settings(&settings)?;
+
+        window::update_window_chrome_settings(&settings.window_chrome);
 
         // Serialize to JSON
         let settings_json = serde_json::to_string(&settings)?;
@@ -132,10 +135,16 @@ impl SettingsService {
                 .map_err(|e| AppError::Database(format!("Failed to load settings: {}", e)))?;
 
         match row {
-            Some((json,)) => serde_json::from_str(&json).map_err(AppError::Serialization),
+            Some((json,)) => {
+                let settings: AppSettings =
+                    serde_json::from_str(&json).map_err(AppError::Serialization)?;
+                window::update_window_chrome_settings(&settings.window_chrome);
+                Ok(settings)
+            }
             None => {
                 // Return default settings and save them
                 let defaults = AppSettings::default();
+                window::update_window_chrome_settings(&defaults.window_chrome);
                 self.save_defaults(&defaults).await?;
                 Ok(defaults)
             }

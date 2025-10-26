@@ -18,3 +18,6 @@ export type { BackupConfig, BackupInfo, DatabaseStats, ExportData, SnippetExport
 
 // Theme types
 export type { ThemePalette } from './theme';
+
+// Settings extras
+export type { WindowChromeSettings, WindowChromePreference } from './settings';

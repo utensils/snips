@@ -49,3 +49,11 @@ pub async fn hide_quick_add_window(app: AppHandle) -> Result<(), String> {
 pub async fn update_badge_count(app: AppHandle, count: u32) -> Result<(), String> {
     crate::services::menubar::update_badge_count(&app, count).map_err(|e| e.to_string())
 }
+
+/// Returns a snapshot of all window states for diagnostics
+#[tauri::command]
+pub async fn window_diagnostics(
+    app: AppHandle,
+) -> Result<Vec<crate::services::window::WindowDiagnostic>, String> {
+    Ok(crate::services::window::collect_window_diagnostics(&app))
+}

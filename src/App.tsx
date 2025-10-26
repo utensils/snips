@@ -9,6 +9,7 @@ import { SearchOverlay } from '@/components/SearchOverlay';
 import { SettingsWindow } from '@/components/SettingsWindow';
 import { useTheme } from '@/hooks/useTheme';
 import { applyOmarchyPalette } from '@/lib/theme';
+import type { AppSettings, WindowChromePreference } from '@/types/settings';
 import type { ThemePalette } from '@/types/theme';
 
 /**
@@ -22,7 +23,20 @@ function App(): ReactElement {
   useTheme();
 
   useEffect(() => {
-    let unlisten: UnlistenFn | undefined;
+    let paletteUnlisten: UnlistenFn | undefined;
+    let focusWarningUnlisten: UnlistenFn | undefined;
+    let settingsUnlisten: UnlistenFn | undefined;
+
+    const applyChromePreference = (platformName: string, settings: AppSettings | null): void => {
+      const root = document.documentElement;
+      const key: keyof AppSettings['window_chrome'] =
+        platformName === 'macos' ? 'macos' : platformName === 'windows' ? 'windows' : 'linux';
+      const preference: WindowChromePreference =
+        settings?.window_chrome?.[key] ??
+        (platformName === 'macos' ? 'frameless_shadow' : 'native');
+      const chromeValue = preference === 'frameless_shadow' ? 'frameless-shadow' : preference;
+      root.setAttribute('data-chrome', chromeValue);
+    };
 
     const applyPalette = (palette: ThemePalette | null): void => {
       if (!palette) return;
@@ -35,8 +49,16 @@ function App(): ReactElement {
         const platformName = await platform();
         const root = document.documentElement;
         root.setAttribute('data-platform', platformName);
-        const chrome = platformName === 'macos' ? 'frameless' : 'native';
-        root.setAttribute('data-chrome', chrome);
+        applyChromePreference(platformName, null);
+
+        try {
+          const settings = await invoke<AppSettings>('get_settings');
+          applyChromePreference(platformName, settings);
+        } catch (err) {
+          if (import.meta.env.DEV) {
+            console.error('Failed to load settings for chrome preference', err);
+          }
+        }
 
         if (platformName === 'linux') {
           try {
@@ -48,10 +70,20 @@ function App(): ReactElement {
             }
           }
 
-          unlisten = await listen<ThemePalette>('appearance-updated', (event) => {
+          paletteUnlisten = await listen<ThemePalette>('appearance-updated', (event) => {
             applyPalette(event.payload ?? null);
           });
+
+          focusWarningUnlisten = await listen<string>('focus-warning', (event) => {
+            if (import.meta.env.DEV) {
+              console.warn(event.payload ?? 'Snips window focus warning received');
+            }
+          });
         }
+
+        settingsUnlisten = await listen<AppSettings>('settings-changed', (event) => {
+          applyChromePreference(platformName, event.payload ?? null);
+        });
       } catch (err) {
         if (import.meta.env.DEV) {
           console.error('Failed to determine platform', err);
@@ -62,7 +94,9 @@ function App(): ReactElement {
     applyPlatform();
 
     return () => {
-      void unlisten?.();
+      void paletteUnlisten?.();
+      void focusWarningUnlisten?.();
+      void settingsUnlisten?.();
     };
   }, []);
 

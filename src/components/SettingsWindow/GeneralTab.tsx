@@ -5,7 +5,29 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Spinner } from '@/components/ui/Spinner';
 import { getSettings, updateSettings } from '@/lib/api';
-import type { AppSettings, Theme } from '@/types/settings';
+import type { AppSettings, Theme, WindowChromePreference } from '@/types/settings';
+
+const WINDOW_CHROME_OPTIONS: Array<{
+  value: WindowChromePreference;
+  label: string;
+  description: string;
+}> = [
+  {
+    value: 'native',
+    label: 'Native',
+    description: 'Use the operating system window frame and controls.',
+  },
+  {
+    value: 'frameless',
+    label: 'Frameless',
+    description: 'Hide the title bar; let your compositor manage shadows and borders.',
+  },
+  {
+    value: 'frameless_shadow',
+    label: 'Frameless + Shadow',
+    description: 'Frameless window with Snips-managed drop shadow (macOS-style).',
+  },
+];
 
 /**
  * General Settings Tab
@@ -18,6 +40,17 @@ export function GeneralTab(): ReactElement {
   const [error, setError] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [currentPlatform, setCurrentPlatform] = useState<string>('');
+
+  const resolvePlatformKey = (platformName: string): keyof AppSettings['window_chrome'] => {
+    switch (platformName) {
+      case 'macos':
+        return 'macos';
+      case 'windows':
+        return 'windows';
+      default:
+        return 'linux';
+    }
+  };
 
   // Load settings and platform on mount
   useEffect(() => {
@@ -64,6 +97,34 @@ export function GeneralTab(): ReactElement {
     }
   };
 
+  const handleWindowChromeChange = async (preference: WindowChromePreference): Promise<void> => {
+    if (!settings) return;
+
+    try {
+      setIsSaving(true);
+      setError(null);
+      setSaveSuccess(false);
+
+      const platformKey = resolvePlatformKey(currentPlatform);
+      const updatedSettings: AppSettings = {
+        ...settings,
+        window_chrome: {
+          ...settings.window_chrome,
+          [platformKey]: preference,
+        },
+      };
+
+      await updateSettings(updatedSettings);
+      setSettings(updatedSettings);
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 3000);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update window chrome');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -86,6 +147,9 @@ export function GeneralTab(): ReactElement {
   if (!settings) {
     return <div />;
   }
+
+  const platformKey = resolvePlatformKey(currentPlatform);
+  const currentChrome = settings.window_chrome?.[platformKey] ?? 'native';
 
   return (
     <div className="space-y-6">
@@ -154,6 +218,45 @@ export function GeneralTab(): ReactElement {
                 />
               </div>
             </label>
+          </div>
+        </div>
+      </Card>
+
+      <Card className="p-6">
+        <div className="space-y-4">
+          <div>
+            <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-1">
+              Window Chrome
+            </h3>
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              Control window decorations on {currentPlatform || 'your'} system.
+            </p>
+          </div>
+
+          <div className="grid gap-3 md:grid-cols-3">
+            {WINDOW_CHROME_OPTIONS.map((option) => {
+              const isSelected = currentChrome === option.value;
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => handleWindowChromeChange(option.value)}
+                  disabled={isSaving}
+                  className={`border rounded-lg p-4 text-left transition-all ${
+                    isSelected
+                      ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                      : 'border-gray-200 dark:border-gray-700 hover:border-blue-300'
+                  }`}
+                >
+                  <span className="font-medium text-gray-900 dark:text-gray-100">
+                    {option.label}
+                  </span>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                    {option.description}
+                  </p>
+                </button>
+              );
+            })}
           </div>
         </div>
       </Card>

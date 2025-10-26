@@ -9,6 +9,17 @@ export type StorageType = 'local' | 'git' | 'cloud';
 export type Theme = 'light' | 'dark' | 'system';
 
 /**
+ * Window chrome preference
+ */
+export type WindowChromePreference = 'native' | 'frameless' | 'frameless_shadow';
+
+export interface WindowChromeSettings {
+  macos: WindowChromePreference;
+  linux: WindowChromePreference;
+  windows: WindowChromePreference;
+}
+
+/**
  * Conflict resolution strategy for sync operations
  */
 export type ConflictResolutionStrategy = 'last_write_wins' | 'keep_both' | 'ask_user';
@@ -62,6 +73,7 @@ export interface AppSettings {
   global_shortcuts: GlobalShortcuts;
   search_settings: SearchSettings;
   privacy_settings: PrivacySettings;
+  window_chrome: WindowChromeSettings;
   cloud_sync_settings?: CloudSyncSettings;
 }
 

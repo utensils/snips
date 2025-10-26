@@ -30,6 +30,41 @@ impl Default for Theme {
     }
 }
 
+/// Window chrome preference per platform
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum WindowChrome {
+    Native,
+    Frameless,
+    FramelessShadow,
+}
+
+impl Default for WindowChrome {
+    fn default() -> Self {
+        Self::Native
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct WindowChromeSettings {
+    #[serde(default)]
+    pub macos: WindowChrome,
+    #[serde(default)]
+    pub linux: WindowChrome,
+    #[serde(default)]
+    pub windows: WindowChrome,
+}
+
+impl Default for WindowChromeSettings {
+    fn default() -> Self {
+        Self {
+            macos: WindowChrome::FramelessShadow,
+            linux: WindowChrome::Native,
+            windows: WindowChrome::Native,
+        }
+    }
+}
+
 /// Conflict resolution strategy for sync operations
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -135,6 +170,8 @@ pub struct AppSettings {
     pub search_settings: SearchSettings,
     #[serde(default)]
     pub privacy_settings: PrivacySettings,
+    #[serde(default)]
+    pub window_chrome: WindowChromeSettings,
     #[serde(default)]
     pub cloud_sync_settings: Option<CloudSyncSettings>,
 }

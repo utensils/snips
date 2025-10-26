@@ -1,3 +1,6 @@
+use crate::models::settings::{WindowChrome, WindowChromeSettings};
+use serde::Serialize;
+use std::sync::{OnceLock, RwLock};
 use tauri::{AppHandle, Emitter, Manager, PhysicalPosition, PhysicalSize, WebviewWindow};
 
 use crate::utils::error::AppError;
@@ -7,6 +10,93 @@ enum WindowProfile {
     Overlay,
     Dialog,
     Standard,
+}
+
+#[derive(Debug, Serialize)]
+pub struct WindowDiagnostic {
+    pub label: String,
+    pub is_visible: Option<bool>,
+    pub is_focused: Option<bool>,
+    pub decorations: bool,
+    pub always_on_top: bool,
+    pub skip_taskbar: bool,
+    pub position: Option<(i32, i32)>,
+    pub size: Option<(u32, u32)>,
+}
+
+struct FocusResult {
+    attempts: usize,
+    success: bool,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum WindowManager {
+    Hyprland,
+    Sway,
+    River,
+    Other,
+}
+
+static WINDOW_CHROME_STATE: OnceLock<RwLock<WindowChromeSettings>> = OnceLock::new();
+#[cfg(target_os = "linux")]
+static WINDOW_MANAGER_STATE: OnceLock<WindowManager> = OnceLock::new();
+
+fn window_chrome_settings_handle() -> &'static RwLock<WindowChromeSettings> {
+    WINDOW_CHROME_STATE.get_or_init(|| RwLock::new(WindowChromeSettings::default()))
+}
+
+pub fn update_window_chrome_settings(settings: &WindowChromeSettings) {
+    let mut guard = window_chrome_settings_handle()
+        .write()
+        .expect("window chrome lock poisoned");
+    *guard = settings.clone();
+}
+
+fn window_chrome_preference() -> WindowChrome {
+    let guard = window_chrome_settings_handle()
+        .read()
+        .expect("window chrome lock poisoned");
+    #[cfg(target_os = "macos")]
+    {
+        guard.macos
+    }
+    #[cfg(target_os = "linux")]
+    {
+        guard.linux
+    }
+    #[cfg(target_os = "windows")]
+    {
+        guard.windows
+    }
+    #[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows")))]
+    {
+        WindowChrome::Native
+    }
+}
+
+#[cfg(target_os = "linux")]
+fn detect_window_manager() -> WindowManager {
+    if std::env::var_os("HYPRLAND_INSTANCE_SIGNATURE").is_some() {
+        WindowManager::Hyprland
+    } else if std::env::var_os("SWAYSOCK").is_some()
+        || matches!(std::env::var("XDG_CURRENT_DESKTOP"), Ok(desktop) if desktop.to_lowercase().contains("sway"))
+    {
+        WindowManager::Sway
+    } else if std::env::var_os("RIVER_INSTANCE").is_some() {
+        WindowManager::River
+    } else {
+        WindowManager::Other
+    }
+}
+
+#[cfg(target_os = "linux")]
+fn current_window_manager() -> WindowManager {
+    *WINDOW_MANAGER_STATE.get_or_init(detect_window_manager)
+}
+
+#[cfg(not(target_os = "linux"))]
+fn current_window_manager() -> WindowManager {
+    WindowManager::Other
 }
 
 #[cfg(target_os = "linux")]
@@ -26,41 +116,122 @@ fn apply_platform_window_profile<'a, R: tauri::Runtime, M: Manager<R>>(
 ) -> tauri::WebviewWindowBuilder<'a, R, M> {
     match profile {
         WindowProfile::Overlay => {
-            if cfg!(target_os = "linux") {
+            let builder = if cfg!(target_os = "linux") {
                 builder
                     .resizable(false)
                     .skip_taskbar(true)
                     .always_on_top(true)
-                    .decorations(true)
                     .transparent(false)
             } else {
                 builder
                     .resizable(false)
                     .skip_taskbar(true)
                     .always_on_top(true)
-                    .decorations(false)
                     .transparent(true)
-            }
+            };
+            apply_window_chrome(builder)
         }
         WindowProfile::Dialog => {
             if cfg!(target_os = "linux") {
-                builder
-                    .resizable(true)
-                    .always_on_top(false)
-                    .skip_taskbar(false)
-                    .decorations(true)
+                let wm = current_window_manager();
+                let builder = builder.resizable(true);
+                let builder = if matches!(
+                    wm,
+                    WindowManager::Hyprland | WindowManager::Sway | WindowManager::River
+                ) {
+                    builder.always_on_top(true).skip_taskbar(true)
+                } else {
+                    builder.always_on_top(false).skip_taskbar(false)
+                };
+                apply_window_chrome(builder)
             } else {
-                builder
-                    .resizable(false)
-                    .always_on_top(true)
-                    .skip_taskbar(true)
-                    .decorations(true)
+                apply_window_chrome(
+                    builder
+                        .resizable(false)
+                        .always_on_top(true)
+                        .skip_taskbar(true),
+                )
             }
         }
-        WindowProfile::Standard => builder
-            .resizable(true)
-            .skip_taskbar(false)
-            .decorations(true),
+        WindowProfile::Standard => apply_window_chrome(builder.resizable(true).skip_taskbar(false)),
+    }
+}
+
+#[cfg(target_os = "linux")]
+fn focus_window_with_backoff(window: &WebviewWindow) -> FocusResult {
+    use std::thread;
+    use std::time::Duration;
+
+    let mut attempts = 0usize;
+    let mut delay_ms = 20u64;
+    let mut success = false;
+    let max_attempts = 5usize;
+
+    while attempts < max_attempts {
+        attempts += 1;
+        match window.set_focus() {
+            Ok(_) => {
+                thread::sleep(Duration::from_millis(delay_ms));
+                if window.is_focused().unwrap_or(false) {
+                    success = true;
+                    break;
+                }
+            }
+            Err(err) => {
+                eprintln!(
+                    "[WARN] [window.rs] set_focus attempt {} failed for {}: {}",
+                    attempts,
+                    window.label(),
+                    err
+                );
+            }
+        }
+        delay_ms = (delay_ms * 2).min(320);
+    }
+
+    if !success {
+        let _ = window.emit(
+            "focus-warning",
+            format!(
+                "Snips window '{}' may be hidden or unfocused after {} attempts.",
+                window.label(),
+                attempts
+            ),
+        );
+    }
+
+    FocusResult { attempts, success }
+}
+
+#[cfg(not(target_os = "linux"))]
+fn focus_window_with_backoff(window: &WebviewWindow) -> FocusResult {
+    let success = window.set_focus().is_ok();
+    FocusResult {
+        attempts: 1,
+        success,
+    }
+}
+
+fn log_focus_metrics(window: &WebviewWindow, result: &FocusResult) {
+    let visible = window.is_visible().ok();
+    let focused = window.is_focused().ok();
+    eprintln!(
+        "[METRIC] [window.rs] focus label={} attempts={} success={} visible={:?} focused={:?}",
+        window.label(),
+        result.attempts,
+        result.success,
+        visible,
+        focused
+    );
+}
+
+fn apply_window_chrome<'a, R: tauri::Runtime, M: Manager<R>>(
+    builder: tauri::WebviewWindowBuilder<'a, R, M>,
+) -> tauri::WebviewWindowBuilder<'a, R, M> {
+    match window_chrome_preference() {
+        WindowChrome::Native => builder.decorations(true).transparent(false).shadow(false),
+        WindowChrome::Frameless => builder.decorations(false).transparent(true).shadow(false),
+        WindowChrome::FramelessShadow => builder.decorations(false).transparent(true).shadow(true),
     }
 }
 
@@ -202,22 +373,6 @@ pub fn show_window(window: &WebviewWindow) -> Result<(), AppError> {
         window.is_focused().unwrap_or(false)
     );
 
-    // Give the compositor time to process the show request (Wayland)
-    #[cfg(target_os = "linux")]
-    std::thread::sleep(std::time::Duration::from_millis(20));
-
-    // Try multiple methods to ensure window gets focus on Wayland
-    window
-        .set_focus()
-        .map_err(|e| AppError::TauriError(e.to_string()))?;
-
-    eprintln!(
-        "[DEBUG] [window.rs] show_window({}): after set_focus() - is_visible={:?}, is_focused={:?}",
-        window.label(),
-        window.is_visible().unwrap_or(false),
-        window.is_focused().unwrap_or(false)
-    );
-
     // Try unminimize (X11 only, but harmless on Wayland)
     eprintln!(
         "[DEBUG] [window.rs] show_window({}): calling unminimize()",
@@ -225,26 +380,17 @@ pub fn show_window(window: &WebviewWindow) -> Result<(), AppError> {
     );
     let _ = window.unminimize();
 
-    // Multiple focus attempts for Wayland compositors that may ignore first attempts
     #[cfg(target_os = "linux")]
-    {
-        for attempt in 1..3 {
-            std::thread::sleep(std::time::Duration::from_millis(10));
-            if let Err(e) = window.set_focus() {
-                eprintln!(
-                    "[DEBUG] [window.rs] show_window({}): focus retry {} failed: {}",
-                    window.label(),
-                    attempt,
-                    e
-                );
-            } else {
-                eprintln!(
-                    "[DEBUG] [window.rs] show_window({}): focus retry {} succeeded",
-                    window.label(),
-                    attempt
-                );
-            }
-        }
+    std::thread::sleep(std::time::Duration::from_millis(20));
+
+    let focus_result = focus_window_with_backoff(window);
+    log_focus_metrics(window, &focus_result);
+    if !focus_result.success {
+        eprintln!(
+            "[WARN] [window.rs] {} may still be unfocused after {} attempts",
+            window.label(),
+            focus_result.attempts
+        );
     }
 
     eprintln!(
@@ -255,6 +401,35 @@ pub fn show_window(window: &WebviewWindow) -> Result<(), AppError> {
     );
 
     Ok(())
+}
+
+/// Collects diagnostics for all windows managed by the app
+pub fn collect_window_diagnostics(app: &AppHandle) -> Vec<WindowDiagnostic> {
+    app.webview_windows()
+        .values()
+        .map(|window| {
+            let position = window.outer_position().ok().map(|pos| (pos.x, pos.y));
+            let size = window
+                .outer_size()
+                .ok()
+                .map(|physical| (physical.width, physical.height));
+            let is_visible = window.is_visible().ok();
+            let is_focused = window.is_focused().ok();
+            let is_decorated = window.is_decorated().ok();
+            let always_on_top = window.is_always_on_top().ok();
+
+            WindowDiagnostic {
+                label: window.label().to_string(),
+                is_visible,
+                is_focused,
+                decorations: is_decorated.unwrap_or(true),
+                always_on_top: always_on_top.unwrap_or(false),
+                skip_taskbar: false,
+                position,
+                size,
+            }
+        })
+        .collect()
 }
 
 /// Hides a window
