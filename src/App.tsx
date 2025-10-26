@@ -1,17 +1,13 @@
-import { convertFileSrc, invoke } from '@tauri-apps/api/core';
+import { invoke } from '@tauri-apps/api/core';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import { getCurrentWindow } from '@tauri-apps/api/window';
-import { platform } from '@tauri-apps/plugin-os';
 import { type ReactElement, useEffect, useState } from 'react';
 
 import { QuickAddDialog } from '@/components/QuickAddDialog';
 import { SearchOverlay } from '@/components/SearchOverlay';
 import { SettingsWindow } from '@/components/SettingsWindow';
-import { useTheme } from '@/hooks/useTheme';
-import { applyOmarchyPalette } from '@/lib/theme';
+import { useThemeController } from '@/hooks/useThemeController';
 import type { ClipboardProbeResult } from '@/types/clipboard';
-import type { AppSettings, WindowChromePreference } from '@/types/settings';
-import type { ThemePalette } from '@/types/theme';
 
 /**
  * Main App component that routes to different views based on window label
@@ -21,111 +17,63 @@ function App(): ReactElement {
   const [isLoading, setIsLoading] = useState(true);
   const [clipboardWarning, setClipboardWarning] = useState<string | null>(null);
 
-  // Initialize theme (system preference detection)
-  useTheme();
+  const { platform: platformName } = useThemeController();
 
   useEffect(() => {
-    let paletteUnlisten: UnlistenFn | undefined;
+    if (platformName !== 'linux') {
+      return undefined;
+    }
+
     let focusWarningUnlisten: UnlistenFn | undefined;
-    let settingsUnlisten: UnlistenFn | undefined;
+    let cancelled = false;
 
-    const applyChromePreference = (platformName: string, settings: AppSettings | null): void => {
-      const root = document.documentElement;
-      const key: keyof AppSettings['window_chrome'] =
-        platformName === 'macos' ? 'macos' : platformName === 'windows' ? 'windows' : 'linux';
-      const preference: WindowChromePreference =
-        settings?.window_chrome?.[key] ??
-        (platformName === 'macos' ? 'frameless_shadow' : 'native');
-      const chromeValue = preference === 'frameless_shadow' ? 'frameless-shadow' : preference;
-      root.setAttribute('data-chrome', chromeValue);
-    };
-
-    const applyPalette = (palette: ThemePalette | null): void => {
-      if (!palette) return;
-      const wallpaper = palette.wallpaper ? convertFileSrc(palette.wallpaper) : null;
-      applyOmarchyPalette(palette, wallpaper);
-    };
-
-    const applyPlatform = async (): Promise<void> => {
+    const probeClipboard = async (): Promise<void> => {
       try {
-        const platformName = await platform();
-        const root = document.documentElement;
-        root.setAttribute('data-platform', platformName);
-        applyChromePreference(platformName, null);
-
-        try {
-          const settings = await invoke<AppSettings>('get_settings');
-          applyChromePreference(platformName, settings);
-        } catch (err) {
-          if (import.meta.env.DEV) {
-            console.error('Failed to load settings for chrome preference', err);
-          }
+        const probe = await invoke<ClipboardProbeResult>('probe_clipboard_support');
+        if (cancelled) {
+          return;
         }
 
-        if (platformName === 'linux') {
-          try {
-            const palette = await invoke<ThemePalette>('get_theme_palette');
-            applyPalette(palette);
-          } catch (err) {
-            if (import.meta.env.DEV) {
-              console.error('Failed to load Omarchy theme palette', err);
-            }
-          }
+        let message: string | null = null;
 
-          try {
-            const probe = await invoke<ClipboardProbeResult>('probe_clipboard_support');
-            let message: string | null = null;
-
-            if (!probe.primary_supported) {
-              message = probe.primary_error
-                ? `Primary selection is unavailable (${probe.primary_error}). Snips will fall back to the standard clipboard.`
-                : 'Primary selection is unavailable on this compositor. Snips will fall back to the standard clipboard.';
-            } else if (!probe.clipboard_supported) {
-              message = probe.clipboard_error
-                ? `Clipboard access is restricted (${probe.clipboard_error}).`
-                : 'Clipboard access is restricted. Snips may not capture text automatically.';
-            } else if (probe.sandboxed && !probe.portal_supported) {
-              message = probe.portal_error
-                ? `GTK portal clipboard fallback is unavailable (${probe.portal_error}). Selected text capture may require manual permission tweaks.`
-                : 'GTK portal clipboard fallback is unavailable. Snips may have limited clipboard access inside this sandbox.';
-            }
-
-            setClipboardWarning(message);
-          } catch (err) {
-            if (import.meta.env.DEV) {
-              console.warn('Clipboard probe failed', err);
-            }
-          }
-
-          paletteUnlisten = await listen<ThemePalette>('appearance-updated', (event) => {
-            applyPalette(event.payload ?? null);
-          });
-
-          focusWarningUnlisten = await listen<string>('focus-warning', (event) => {
-            if (import.meta.env.DEV) {
-              console.warn(event.payload ?? 'Snips window focus warning received');
-            }
-          });
+        if (!probe.primary_supported) {
+          message = probe.primary_error
+            ? `Primary selection is unavailable (${probe.primary_error}). Snips will fall back to the standard clipboard.`
+            : 'Primary selection is unavailable on this compositor. Snips will fall back to the standard clipboard.';
+        } else if (!probe.clipboard_supported) {
+          message = probe.clipboard_error
+            ? `Clipboard access is restricted (${probe.clipboard_error}).`
+            : 'Clipboard access is restricted. Snips may not capture text automatically.';
+        } else if (probe.sandboxed && !probe.portal_supported) {
+          message = probe.portal_error
+            ? `GTK portal clipboard fallback is unavailable (${probe.portal_error}). Selected text capture may require manual permission tweaks.`
+            : 'GTK portal clipboard fallback is unavailable. Snips may have limited clipboard access inside this sandbox.';
         }
 
-        settingsUnlisten = await listen<AppSettings>('settings-changed', (event) => {
-          applyChromePreference(platformName, event.payload ?? null);
-        });
+        setClipboardWarning(message);
       } catch (err) {
         if (import.meta.env.DEV) {
-          console.error('Failed to determine platform', err);
+          console.warn('Clipboard probe failed', err);
         }
       }
     };
 
-    applyPlatform();
+    const setupFocusWarning = async (): Promise<void> => {
+      focusWarningUnlisten = await listen<string>('focus-warning', (event) => {
+        if (import.meta.env.DEV) {
+          console.warn(event.payload ?? 'Snips window focus warning received');
+        }
+      });
+    };
+
+    void probeClipboard();
+    void setupFocusWarning();
 
     return () => {
-      void paletteUnlisten?.();
+      cancelled = true;
       void focusWarningUnlisten?.();
-      void settingsUnlisten?.();
     };
-  }, []);
+  }, [platformName]);
 
   useEffect(() => {
     const getWindowLabel = async (): Promise<void> => {
@@ -156,11 +104,13 @@ function App(): ReactElement {
 
   let view: ReactElement;
 
+  const warningForWindow = platformName === 'linux' ? clipboardWarning : null;
+
   switch (windowLabel) {
     case 'quick-add':
       view = (
         <QuickAddDialog
-          clipboardWarning={clipboardWarning}
+          clipboardWarning={warningForWindow}
           onSuccess={() => {
             // Snippet created successfully
           }}

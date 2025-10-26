@@ -54,8 +54,16 @@ export default {
           foreground: 'var(--muted-foreground)',
         },
         border: 'var(--border)',
+        'border-soft': 'var(--border-soft)',
         input: 'var(--input)',
         ring: 'var(--ring)',
+        surface: {
+          0: 'var(--surface-0)',
+          1: 'var(--surface-1)',
+          2: 'var(--surface-2)',
+          3: 'var(--surface-3)',
+        },
+        icon: 'var(--icon-theme)',
       },
       borderRadius: {
         lg: 'var(--radius)',

@@ -5,10 +5,23 @@ const COLOR_MAPPING: Record<string, string[]> = {
   '--foreground': ['text', 'foreground'],
   '--primary': ['selected_text', 'accent'],
   '--primary-foreground': ['foreground', 'text'],
-  '--border': ['border'],
+  '--accent': ['accent', 'selected_text'],
+  '--accent-foreground': ['text', 'foreground'],
+  '--border': ['border', 'outline'],
+  '--border-soft': ['border', 'surface', 'muted'],
   '--muted': ['surface', 'muted'],
-  '--muted-foreground': ['muted_foreground', 'muted'],
+  '--muted-foreground': ['muted_foreground', 'muted', 'text_disabled'],
+  '--surface-0': ['background', 'base'],
+  '--surface-1': ['surface', 'surface_highlight', 'surface_alt'],
+  '--surface-2': ['muted', 'surface_low', 'surface_raised'],
+  '--surface-3': ['shadow', 'surface_deep', 'surface_darker'],
 };
+
+const OMARCHY_STYLE_VARS = new Set<string>([
+  ...Object.keys(COLOR_MAPPING),
+  '--icon-theme',
+  '--omarchy-wallpaper',
+]);
 
 function clamp(value: number, min = 0, max = 1): number {
   return Math.min(Math.max(value, min), max);
@@ -151,4 +164,15 @@ export function applyOmarchyPalette(palette: ThemePalette, wallpaperSrc?: string
   } else {
     root.style.removeProperty('--omarchy-wallpaper');
   }
+}
+
+export function clearOmarchyPalette(): void {
+  const root = document.documentElement;
+  delete root.dataset.omarchyTheme;
+  delete root.dataset.omarchyLuminance;
+  delete root.dataset.omarchyIconTheme;
+
+  OMARCHY_STYLE_VARS.forEach((cssVar) => {
+    root.style.removeProperty(cssVar);
+  });
 }

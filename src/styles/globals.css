@@ -7,11 +7,16 @@
   --primary-foreground: 210 40% 98%;
   --secondary: 210 40% 96.1%;
   --secondary-foreground: 222.2 47.4% 11.2%;
-  --accent: 210 40% 96.1%;
-  --accent-foreground: 222.2 47.4% 11.2%;
+  --accent: 221.2 83.2% 53.3%;
+  --accent-foreground: 210 40% 98%;
   --muted: 210 40% 96.1%;
   --muted-foreground: 215.4 16.3% 46.9%;
   --border: 214.3 31.8% 91.4%;
+  --border-soft: 214.3 31.8% 86%;
+  --surface-0: 0 0% 100%;
+  --surface-1: 210 40% 97%;
+  --surface-2: 210 30% 94%;
+  --surface-3: 210 25% 90%;
   --input: 214.3 31.8% 91.4%;
   --ring: 221.2 83.2% 53.3%;
   --radius: 0.5rem;
@@ -25,11 +30,16 @@
   --primary-foreground: 222.2 47.4% 11.2%;
   --secondary: 217.2 32.6% 17.5%;
   --secondary-foreground: 210 40% 98%;
-  --accent: 217.2 32.6% 17.5%;
-  --accent-foreground: 210 40% 98%;
+  --accent: 217.2 91.2% 59.8%;
+  --accent-foreground: 222.2 47.4% 11.2%;
   --muted: 217.2 32.6% 17.5%;
   --muted-foreground: 215 20.2% 65.1%;
   --border: 217.2 32.6% 17.5%;
+  --border-soft: 217.2 28% 23%;
+  --surface-0: 225 16% 12%;
+  --surface-1: 225 18% 18%;
+  --surface-2: 225 20% 24%;
+  --surface-3: 225 25% 30%;
   --input: 217.2 32.6% 17.5%;
   --ring: 224.3 76.3% 48%;
 }
@@ -46,6 +56,11 @@ html[data-platform='linux'] {
   --muted: 215 16% 88%;
   --muted-foreground: 218 12% 35%;
   --border: 215 18% 85%;
+  --border-soft: 215 16% 88%;
+  --surface-0: 210 20% 97%;
+  --surface-1: 210 18% 94%;
+  --surface-2: 210 16% 91%;
+  --surface-3: 210 14% 88%;
   --input: 215 18% 85%;
   --ring: 216 92% 60%;
   --font-family-base: 'Cantarell', 'Inter', 'Ubuntu', 'DejaVu Sans', sans-serif;
@@ -63,6 +78,11 @@ html[data-platform='linux'].dark {
   --muted: 220 10% 26%;
   --muted-foreground: 210 24% 70%;
   --border: 220 12% 30%;
+  --border-soft: 220 10% 36%;
+  --surface-0: 220 15% 14%;
+  --surface-1: 220 14% 18%;
+  --surface-2: 220 12% 22%;
+  --surface-3: 220 10% 26%;
   --input: 220 12% 30%;
   --ring: 216 85% 66%;
 }
