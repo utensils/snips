@@ -9,6 +9,17 @@ enum WindowProfile {
     Standard,
 }
 
+#[cfg(target_os = "linux")]
+fn should_ignore_positioning_error(err: &tauri::Error) -> bool {
+    let message = err.to_string();
+    message.contains("NotSupported") || message.contains("not supported")
+}
+
+#[cfg(not(target_os = "linux"))]
+fn should_ignore_positioning_error(_err: &tauri::Error) -> bool {
+    false
+}
+
 fn apply_platform_window_profile<'a, R: tauri::Runtime, M: Manager<R>>(
     builder: tauri::WebviewWindowBuilder<'a, R, M>,
     profile: WindowProfile,
@@ -245,9 +256,16 @@ pub fn hide_window(window: &WebviewWindow) -> Result<(), AppError> {
 
 /// Centers a window on the screen
 pub fn center_window(window: &WebviewWindow) -> Result<(), AppError> {
-    window
-        .center()
-        .map_err(|e| AppError::TauriError(e.to_string()))?;
+    if let Err(err) = window.center() {
+        if should_ignore_positioning_error(&err) {
+            eprintln!(
+                "[DEBUG] [window.rs] center() unsupported on this compositor: {}",
+                err
+            );
+        } else {
+            return Err(AppError::TauriError(err.to_string()));
+        }
+    }
     Ok(())
 }
 
@@ -263,9 +281,16 @@ pub fn position_near_cursor(window: &WebviewWindow) -> Result<(), AppError> {
 /// Positions a window at a specific screen position
 pub fn position_window(window: &WebviewWindow, x: i32, y: i32) -> Result<(), AppError> {
     let position = PhysicalPosition::new(x, y);
-    window
-        .set_position(position)
-        .map_err(|e| AppError::TauriError(e.to_string()))?;
+    if let Err(err) = window.set_position(position) {
+        if should_ignore_positioning_error(&err) {
+            eprintln!(
+                "[DEBUG] [window.rs] set_position() unsupported on this compositor: {}",
+                err
+            );
+        } else {
+            return Err(AppError::TauriError(err.to_string()));
+        }
+    }
     Ok(())
 }
 
