@@ -1,3 +1,4 @@
+import { invoke } from '@tauri-apps/api/core';
 import { platform } from '@tauri-apps/plugin-os';
 import { type ReactElement, useEffect, useState } from 'react';
 
@@ -29,6 +30,12 @@ const WINDOW_CHROME_OPTIONS: Array<{
   },
 ];
 
+const HYPRLAND_WINDOW_RULES = `windowrulev2 = float, title:^(Quick Add Snippet)$
+windowrulev2 = center, title:^(Quick Add Snippet)$
+windowrulev2 = size 650 700, title:^(Quick Add Snippet)$
+windowrulev2 = float, title:^(Snips)$
+windowrulev2 = center, title:^(Snips)$`;
+
 /**
  * General Settings Tab
  * Provides theme selection and other general application preferences
@@ -40,6 +47,7 @@ export function GeneralTab(): ReactElement {
   const [error, setError] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [currentPlatform, setCurrentPlatform] = useState<string>('');
+  const [copySuccess, setCopySuccess] = useState(false);
 
   const resolvePlatformKey = (platformName: string): keyof AppSettings['window_chrome'] => {
     switch (platformName) {
@@ -125,6 +133,33 @@ export function GeneralTab(): ReactElement {
     }
   };
 
+  const handleCopyHyprlandRules = async (): Promise<void> => {
+    const scheduleReset = (): void => {
+      setTimeout(() => setCopySuccess(false), 2000);
+    };
+
+    try {
+      await invoke('copy_to_clipboard', { text: HYPRLAND_WINDOW_RULES });
+      setCopySuccess(true);
+      scheduleReset();
+      return;
+    } catch (tauriError) {
+      if (import.meta.env.DEV) {
+        console.warn('Tauri clipboard copy failed, attempting navigator clipboard API', tauriError);
+      }
+    }
+
+    try {
+      if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(HYPRLAND_WINDOW_RULES);
+        setCopySuccess(true);
+        scheduleReset();
+      }
+    } catch (clipboardError) {
+      console.error('Failed to copy Hyprland rules', clipboardError);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -155,12 +190,8 @@ export function GeneralTab(): ReactElement {
     <div className="space-y-6">
       {/* Page Header */}
       <div>
-        <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2">
-          General Settings
-        </h2>
-        <p className="text-sm text-gray-600 dark:text-gray-400">
-          Customize your application preferences
-        </p>
+        <h2 className="mb-2 text-xl font-semibold text-foreground">General Settings</h2>
+        <p className="text-sm text-muted-foreground">Customize your application preferences</p>
       </div>
 
       {/* Status Messages - Fixed height container prevents layout shift */}
@@ -181,19 +212,13 @@ export function GeneralTab(): ReactElement {
       <Card className="p-6">
         <div className="space-y-4">
           <div>
-            <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-1">
-              Appearance
-            </h3>
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              Choose how the application looks
-            </p>
+            <h3 className="mb-1 text-lg font-medium text-foreground">Appearance</h3>
+            <p className="text-sm text-muted-foreground">Choose how the application looks</p>
           </div>
 
           <div className="space-y-3">
             <label className="block">
-              <span className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 block">
-                Theme
-              </span>
+              <span className="mb-2 block text-sm font-medium text-foreground">Theme</span>
               <div className="grid grid-cols-3 gap-3">
                 <ThemeOption
                   label="Light"
@@ -225,10 +250,8 @@ export function GeneralTab(): ReactElement {
       <Card className="p-6">
         <div className="space-y-4">
           <div>
-            <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-1">
-              Window Chrome
-            </h3>
-            <p className="text-sm text-gray-600 dark:text-gray-400">
+            <h3 className="mb-1 text-lg font-medium text-foreground">Window Chrome</h3>
+            <p className="text-sm text-muted-foreground">
               Control window decorations on {currentPlatform || 'your'} system.
             </p>
           </div>
@@ -242,18 +265,14 @@ export function GeneralTab(): ReactElement {
                   type="button"
                   onClick={() => handleWindowChromeChange(option.value)}
                   disabled={isSaving}
-                  className={`border rounded-lg p-4 text-left transition-all ${
+                  className={`rounded-xl border p-4 text-left transition-colors duration-150 supports-[backdrop-filter]:backdrop-blur-sm ${
                     isSelected
-                      ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
-                      : 'border-gray-200 dark:border-gray-700 hover:border-blue-300'
+                      ? 'border-accent bg-accent/15 shadow-sm'
+                      : 'border-border/60 bg-surface-0/85 hover:border-accent/60'
                   }`}
                 >
-                  <span className="font-medium text-gray-900 dark:text-gray-100">
-                    {option.label}
-                  </span>
-                  <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                    {option.description}
-                  </p>
+                  <span className="font-medium text-foreground">{option.label}</span>
+                  <p className="mt-1 text-sm text-muted-foreground">{option.description}</p>
                 </button>
               );
             })}
@@ -264,25 +283,41 @@ export function GeneralTab(): ReactElement {
       {/* Hyprland guidance for Linux users */}
       {currentPlatform === 'linux' && (
         <Card className="p-6">
-          <div className="space-y-3">
-            <div>
-              <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-1">
-                Hyprland Integration
-              </h3>
-              <p className="text-sm text-gray-600 dark:text-gray-400">
-                Apply window rules to keep Snips floating and centered when using Hyprland.
-              </p>
+          <div className="space-y-4">
+            <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+              <div>
+                <h3 className="mb-1 text-lg font-medium text-foreground">Hyprland Integration</h3>
+                <p className="text-sm text-muted-foreground">
+                  Apply window rules to keep Snips floating and centered when using Hyprland.
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <a
+                  href="https://wiki.hyprland.org/Configuring/Window-Rules/"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-xs font-medium text-accent hover:underline"
+                  title="Open Hyprland window rule documentation"
+                >
+                  Hyprland docs
+                </a>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleCopyHyprlandRules}
+                  title="Copy Hyprland window rules"
+                  className="border border-border/40 px-3"
+                >
+                  {copySuccess ? 'Copied!' : 'Copy rules'}
+                </Button>
+              </div>
             </div>
 
-            <pre className="bg-gray-100 dark:bg-gray-900/90 text-gray-800 dark:text-gray-100 rounded-lg p-4 text-xs leading-relaxed">
-              {`windowrulev2 = float, title:^(Quick Add Snippet)$
-windowrulev2 = center, title:^(Quick Add Snippet)$
-windowrulev2 = size 650 700, title:^(Quick Add Snippet)$
-windowrulev2 = float, title:^(Snips)$
-windowrulev2 = center, title:^(Snips)$`}
+            <pre className="rounded-xl border border-border/60 bg-surface-0/85 p-4 text-xs leading-relaxed text-foreground supports-[backdrop-filter]:backdrop-blur-sm">
+              {HYPRLAND_WINDOW_RULES}
             </pre>
 
-            <p className="text-xs text-gray-500 dark:text-gray-400">
+            <p className="text-xs text-muted-foreground">
               Snips now uses native window chrome on Linux; adjust these rules if you prefer tiling
               behaviour instead.
             </p>
@@ -295,8 +330,8 @@ windowrulev2 = center, title:^(Snips)$`}
         <Card className="p-6">
           <div className="space-y-4">
             <div>
-              <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-1">Startup</h3>
-              <p className="text-sm text-gray-600 dark:text-gray-400">
+              <h3 className="mb-1 text-lg font-medium text-foreground">Startup</h3>
+              <p className="text-sm text-muted-foreground">
                 Configure application startup behavior
               </p>
             </div>
@@ -309,9 +344,9 @@ windowrulev2 = center, title:^(Snips)$`}
                   defaultChecked={true}
                   disabled
                 />
-                <span className="text-sm text-gray-700 dark:text-gray-300">Launch at login</span>
+                <span className="text-sm text-foreground">Launch at login</span>
               </label>
-              <p className="text-xs text-gray-500 dark:text-gray-400 ml-7">
+              <p className="ml-7 text-xs text-muted-foreground">
                 {currentPlatform === 'macos'
                   ? 'Configure this in System Preferences → Users & Groups → Login Items'
                   : 'Configure this in Windows Settings → Apps → Startup'}
@@ -349,17 +384,17 @@ function ThemeOption({
       onClick={() => onSelect(value)}
       disabled={disabled}
       className={`
-        p-4 rounded-lg border-2 transition-all text-center
+        rounded-xl border p-4 text-center transition-colors duration-150 supports-[backdrop-filter]:backdrop-blur-sm
         ${
           isSelected
-            ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30'
-            : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
+            ? 'border-accent bg-accent/15 shadow-sm'
+            : 'border-border/60 bg-surface-0/85 hover:border-accent/60'
         }
         ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
       `}
       aria-pressed={isSelected}
     >
-      <div className="text-sm font-medium text-gray-900 dark:text-gray-100">{label}</div>
+      <div className="text-sm font-medium text-foreground">{label}</div>
     </button>
   );
 }

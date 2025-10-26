@@ -13,9 +13,16 @@ vi.mock('@/lib/api', () => ({
   updateSettings: vi.fn(),
 }));
 
+const platformMock = vi.hoisted(() => vi.fn(() => 'macos'));
+const invokeMock = vi.hoisted(() => vi.fn());
+
 // Mock Tauri platform API
 vi.mock('@tauri-apps/plugin-os', () => ({
-  platform: vi.fn(() => 'macos'),
+  platform: platformMock,
+}));
+
+vi.mock('@tauri-apps/api/core', () => ({
+  invoke: invokeMock,
 }));
 
 // Mock Tauri event system
@@ -55,6 +62,8 @@ describe('GeneralTab - Theme Selection Integration', () => {
     vi.clearAllMocks();
     vi.mocked(getSettings).mockResolvedValue(mockSettings);
     vi.mocked(updateSettings).mockResolvedValue(undefined);
+    platformMock.mockReturnValue('macos');
+    invokeMock.mockResolvedValue(undefined);
   });
 
   it('should load and display current theme from settings', async () => {
@@ -263,6 +272,30 @@ describe('GeneralTab - Theme Selection Integration', () => {
     // Settings should load successfully
     await waitFor(() => {
       expect(screen.getByText('Theme')).toBeInTheDocument();
+    });
+  });
+
+  it('copies Hyprland rules on Linux when copy button is pressed', async () => {
+    const user = userEvent.setup();
+    platformMock.mockReturnValue('linux');
+
+    render(<GeneralTab />);
+
+    await waitFor(() => {
+      expect(getSettings).toHaveBeenCalled();
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText('Hyprland Integration')).toBeInTheDocument();
+    });
+
+    const copyButton = screen.getByRole('button', { name: /Copy rules/i });
+    await user.click(copyButton);
+
+    await waitFor(() => {
+      expect(invokeMock).toHaveBeenCalledWith('copy_to_clipboard', {
+        text: expect.stringContaining('Quick Add Snippet'),
+      });
     });
   });
 });

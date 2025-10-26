@@ -121,6 +121,12 @@ sudo dnf install webkit2gtk4.1-devel
 - **Theme Directories**: If Omarchy theme folders are missing, Snips falls back to the bundled Catppuccin palette; CLI import can regenerate fragments manually.
 - **Tested**: Hyprland (Wayland focus), GNOME Shell (Wayland), KDE Plasma 6 (Wayland), X11 (GNOME). Other DEs/compositors may have additional issues—diagnostics are logged to help triage.
 
+## FAQ
+
+### How does Snips react to Omarchy theme scripts?
+
+Snips watches `~/.config/omarchy/current` for `walker.css`, `light.mode`, `background`, and `icons.theme`. When Omarchy switches palettes the bundled hook (`scripts/omarchy-theme-set-snips`) regenerates the CSS fragment under `~/.config/snips/themes`, reloads wallpaper accents, and broadcasts `appearance-updated` so every window hydrates instantly. If the Omarchy files are missing Snips falls back to the embedded Catppuccin theme—copy the fragment from `docs/omarchy-theme-fallback.md` or run `snips-theme import <name>` to re-export. You can learn more about Linux setup and Wayland window manager expectations in `docs/linux.md`.
+
 ### Installation
 
 ```bash
