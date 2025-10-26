@@ -118,6 +118,8 @@ analyze_diagnostics() {
   local iteration="$1"
   local json="$2"
 
+  echo "$json" | jq -r '.[] | "[metrics] \(.label) focus_success_total=\(.focus_success_total // 0) focus_failure_total=\(.focus_failure_total // 0)"' >&2
+
   local failing
   failing="$(echo "$json" | jq '[.[] | select((.is_visible == true) and ((.focus_success == false) or ((.focus_attempts // 0) > 5) or (.visibility_expected == false) or (.always_on_top_expected == true and .always_on_top != true)))] | length')"
 

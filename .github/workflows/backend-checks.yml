@@ -73,3 +73,78 @@ jobs:
 
       - name: Run tests
         run: cargo test --manifest-path=src-tauri/Cargo.toml --lib --tests
+
+  window-focus-stress:
+    needs: backend-checks
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        backend: [x11, wayland]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.90.0
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/registry
+          key: ${{ runner.os }}-focus-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-focus-cargo-registry-
+
+      - name: Cache cargo index
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/git
+          key: ${{ runner.os }}-focus-cargo-git-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-focus-cargo-git-
+
+      - name: Cache cargo build
+        uses: actions/cache@v4
+        with:
+          path: target
+          key: ${{ runner.os }}-focus-cargo-build-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-focus-cargo-build-
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev \
+            build-essential \
+            curl \
+            wget \
+            file \
+            libxdo-dev \
+            libssl-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            weston \
+            xvfb \
+            jq \
+            python3-minimal \
+            glib2.0-bin
+
+      - name: Build Snips binary
+        run: cargo build --manifest-path=src-tauri/Cargo.toml --bin snips
+
+      - name: Run window focus stress (${{ matrix.backend }})
+        env:
+          BACKEND: ${{ matrix.backend }}
+        run: |
+          scripts/window-focus-ci.sh --backend "${BACKEND}" --iterations 12 --delay 0.3
+
+      - name: Upload focus logs (${{ matrix.backend }})
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: focus-${{ matrix.backend }}-logs
+          path: focus-logs
+          if-no-files-found: warn

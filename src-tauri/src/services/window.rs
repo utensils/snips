@@ -27,12 +27,20 @@ pub struct WindowDiagnostic {
     pub always_on_top_expected: Option<bool>,
     pub focus_attempts: Option<usize>,
     pub focus_success: Option<bool>,
+    pub focus_success_total: Option<u64>,
+    pub focus_failure_total: Option<u64>,
 }
 
 #[derive(Clone, Copy)]
 struct FocusResult {
     attempts: usize,
     success: bool,
+}
+
+#[derive(Default, Clone, Copy)]
+struct WindowCounters {
+    focus_success_total: u64,
+    focus_failure_total: u64,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -49,6 +57,7 @@ static WINDOW_MANAGER_STATE: OnceLock<WindowManager> = OnceLock::new();
 static FOCUS_METRICS_STATE: OnceLock<RwLock<HashMap<String, FocusResult>>> = OnceLock::new();
 static WINDOW_ON_TOP_STATE: OnceLock<RwLock<HashMap<String, bool>>> = OnceLock::new();
 static WINDOW_VISIBILITY_STATE: OnceLock<RwLock<HashMap<String, bool>>> = OnceLock::new();
+static WINDOW_COUNTERS_STATE: OnceLock<RwLock<HashMap<String, WindowCounters>>> = OnceLock::new();
 
 fn window_chrome_settings_handle() -> &'static RwLock<WindowChromeSettings> {
     WINDOW_CHROME_STATE.get_or_init(|| RwLock::new(WindowChromeSettings::default()))
@@ -66,10 +75,19 @@ fn visibility_state_handle() -> &'static RwLock<HashMap<String, bool>> {
     WINDOW_VISIBILITY_STATE.get_or_init(|| RwLock::new(HashMap::new()))
 }
 
+fn counters_handle() -> &'static RwLock<HashMap<String, WindowCounters>> {
+    WINDOW_COUNTERS_STATE.get_or_init(|| RwLock::new(HashMap::new()))
+}
+
+fn metrics_enabled() -> bool {
+    matches!(std::env::var("SNIPS_METRICS"), Ok(val) if !val.is_empty() && val != "0")
+}
+
 fn record_focus_metrics(label: &str, result: FocusResult) {
     if let Ok(mut guard) = focus_metrics_handle().write() {
         guard.insert(label.to_string(), result);
     }
+    record_focus_counters(label, result);
 }
 
 fn get_focus_metrics(label: &str) -> Option<FocusResult> {
@@ -87,6 +105,9 @@ pub fn reset_focus_metrics_for_tests() {
         guard.clear();
     }
     if let Ok(mut guard) = visibility_state_handle().write() {
+        guard.clear();
+    }
+    if let Ok(mut guard) = counters_handle().write() {
         guard.clear();
     }
 }
@@ -112,6 +133,31 @@ fn record_visibility_state(label: &str, visible: bool) {
 
 fn get_visibility_state(label: &str) -> Option<bool> {
     visibility_state_handle()
+        .read()
+        .ok()
+        .and_then(|guard| guard.get(label).copied())
+}
+
+fn record_focus_counters(label: &str, result: FocusResult) {
+    if !metrics_enabled() {
+        return;
+    }
+
+    if let Ok(mut guard) = counters_handle().write() {
+        let entry = guard.entry(label.to_string()).or_default();
+        if result.success {
+            entry.focus_success_total = entry.focus_success_total.saturating_add(1);
+        } else {
+            entry.focus_failure_total = entry.focus_failure_total.saturating_add(1);
+        }
+    }
+}
+
+fn get_focus_counters(label: &str) -> Option<WindowCounters> {
+    if !metrics_enabled() {
+        return None;
+    }
+    counters_handle()
         .read()
         .ok()
         .and_then(|guard| guard.get(label).copied())
@@ -543,6 +589,10 @@ pub fn collect_window_diagnostics<R: Runtime>(app: &AppHandle<R>) -> Vec<WindowD
             let (focus_attempts, focus_success) = metrics
                 .map(|m| (Some(m.attempts), Some(m.success)))
                 .unwrap_or((None, None));
+            let counters = get_focus_counters(&label);
+            let (focus_success_total, focus_failure_total) = counters
+                .map(|c| (Some(c.focus_success_total), Some(c.focus_failure_total)))
+                .unwrap_or((None, None));
 
             WindowDiagnostic {
                 label,
@@ -557,6 +607,8 @@ pub fn collect_window_diagnostics<R: Runtime>(app: &AppHandle<R>) -> Vec<WindowD
                 always_on_top_expected: expected_on_top,
                 focus_attempts,
                 focus_success,
+                focus_success_total,
+                focus_failure_total,
             }
         })
         .collect()

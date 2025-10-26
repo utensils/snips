@@ -31,6 +31,7 @@ fn window_sequence_reports_expected_visibility() {
     std::env::set_var("HYPRLAND_INSTANCE_SIGNATURE", "snips-test");
     std::env::set_var("SNIPS_ASSUME_PROFILE_TOP", "1");
     std::env::set_var("SNIPS_ASSUME_WINDOW_VISIBILITY", "1");
+    std::env::set_var("SNIPS_METRICS", "1");
     snips_lib::services::window::reset_focus_metrics_for_tests();
 
     let app = build_mock_app();
@@ -43,6 +44,8 @@ fn window_sequence_reports_expected_visibility() {
     assert_eq!(search_diag.is_visible, Some(true));
     assert_eq!(search_diag.always_on_top, true);
     assert_eq!(search_diag.always_on_top_expected, Some(true));
+    assert_eq!(search_diag.focus_success_total, Some(0));
+    assert_eq!(search_diag.focus_failure_total, Some(1));
     let search_attempts = search_diag
         .focus_attempts
         .expect("search window focus attempts recorded");
@@ -63,6 +66,7 @@ fn window_sequence_reports_expected_visibility() {
     assert!(settings_diag.focus_attempts.unwrap_or(0) <= 5);
     assert_eq!(settings_diag.always_on_top, false);
     assert_eq!(settings_diag.always_on_top_expected, Some(false));
+    assert_eq!(settings_diag.focus_failure_total, Some(1));
 
     // 3. Show the quick add window via the service helpers to avoid clipboard
     //    dependencies in the unit test environment.
@@ -87,6 +91,7 @@ fn window_sequence_reports_expected_visibility() {
     );
     assert_eq!(quick_add_diag.always_on_top, true);
     assert_eq!(quick_add_diag.always_on_top_expected, Some(true));
+    assert_eq!(quick_add_diag.focus_failure_total, Some(1));
 
     // 4. Hide quick add and search windows, ensure visibility flags update.
     hide_quick_add_window(&handle).expect("hide quick add");
@@ -102,4 +107,5 @@ fn window_sequence_reports_expected_visibility() {
     std::env::remove_var("HYPRLAND_INSTANCE_SIGNATURE");
     std::env::remove_var("SNIPS_ASSUME_PROFILE_TOP");
     std::env::remove_var("SNIPS_ASSUME_WINDOW_VISIBILITY");
+    std::env::remove_var("SNIPS_METRICS");
 }
