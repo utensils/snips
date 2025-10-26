@@ -456,17 +456,10 @@ pub fn get_or_create_quick_add_window<R: Runtime>(
         .build()
         .map_err(|e| AppError::TauriError(format!("Failed to create Quick Add window: {}", e)))?;
 
-    #[cfg(target_os = "linux")]
-    let expected_on_top = matches!(
-        current_window_manager(),
-        WindowManager::Hyprland | WindowManager::Sway | WindowManager::River
-    );
-
-    #[cfg(not(target_os = "linux"))]
     let expected_on_top = true;
-
     let _ = window.set_always_on_top(expected_on_top);
     record_expected_on_top(QUICK_ADD_WINDOW_LABEL, expected_on_top);
+    record_visibility_state(QUICK_ADD_WINDOW_LABEL, false);
 
     Ok(window)
 }
