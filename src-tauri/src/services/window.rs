@@ -374,6 +374,8 @@ pub fn show_settings_window(app: &AppHandle) -> Result<(), AppError> {
 pub fn show_quick_add_window(app: &AppHandle) -> Result<(), AppError> {
     eprintln!("[DEBUG] [window.rs] show_quick_add_window() called");
 
+    let quick_add_exists = app.get_webview_window(QUICK_ADD_WINDOW_LABEL).is_some();
+
     // IMPORTANT: Capture selected text BEFORE showing window to avoid losing focus
     let selected_text = capture_selected_text_sync();
     eprintln!(
@@ -384,22 +386,43 @@ pub fn show_quick_add_window(app: &AppHandle) -> Result<(), AppError> {
         }
     );
 
-    // If no text was captured, don't show the window (silent fail)
+    let delay_ms = if quick_add_exists { 200 } else { 1000 };
+
+    // If no text was captured, surface error to the webview so the dialog can react
     let text = match selected_text {
         Ok(t) => t,
         Err(e) => {
+            let message = e.to_string();
             eprintln!(
-                "[DEBUG] [window.rs] No text selected, not showing window: {}",
-                e
+                "[DEBUG] [window.rs] No text selected, surfacing error to quick-add window: {}",
+                message
             );
-            return Ok(()); // Success, but don't show window
+
+            let window = get_or_create_quick_add_window(app)?;
+            center_window(&window)?;
+            show_window(&window)?;
+
+            let app_clone = app.clone();
+            std::thread::spawn(move || {
+                std::thread::sleep(std::time::Duration::from_millis(delay_ms));
+                if let Err(err) =
+                    app_clone.emit_to(QUICK_ADD_WINDOW_LABEL, "selected-text-error", message)
+                {
+                    eprintln!(
+                        "[DEBUG] [window.rs] Failed to emit selected-text-error event: {}",
+                        err
+                    );
+                }
+            });
+
+            return Err(e);
         }
     };
 
     eprintln!("[DEBUG] [window.rs] Getting quick-add window");
 
     // Check if window needs creation (for delay calculation)
-    let was_created = app.get_webview_window(QUICK_ADD_WINDOW_LABEL).is_none();
+    let was_created = !quick_add_exists;
 
     let window = get_or_create_quick_add_window(app)?;
     eprintln!("[DEBUG] [window.rs] Window obtained successfully");
