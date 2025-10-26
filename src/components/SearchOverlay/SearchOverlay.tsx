@@ -11,11 +11,32 @@ import { Toast, useToast } from '@/components/ui/Toast';
 import { useDebounce } from '@/hooks/useDebounce';
 import { useKeyboardNavigation } from '@/hooks/useKeyboardNavigation';
 import { useSelectionBadge } from '@/hooks/useSelectionBadge';
+import { useTags } from '@/hooks/useTags';
 import { useSnippetStore } from '@/stores/snippetStore';
 import type { SearchResult } from '@/types';
 
 const ITEM_HEIGHT = 80;
 const MAX_VISIBLE_ITEMS = 8;
+
+/**
+ * Parse tag filter from query string
+ * Returns tuple of [tagName, remainingQuery]
+ */
+function parseTagFilter(query: string): [string | null, string] {
+  const colonPos = query.indexOf(':');
+  if (colonPos === -1) {
+    return [null, query];
+  }
+
+  const potentialTag = query.slice(0, colonPos);
+  // Tag names should be non-empty and not contain spaces
+  if (potentialTag && !potentialTag.includes(' ')) {
+    const remaining = query.slice(colonPos + 1).trim();
+    return [potentialTag, remaining];
+  }
+
+  return [null, query];
+}
 
 interface SearchResultItemProps {
   result: SearchResult;
@@ -23,6 +44,7 @@ interface SearchResultItemProps {
   isFocused: boolean;
   onToggleSelect: () => void;
   style: CSSProperties;
+  getTagColor: (tagName: string) => string;
 }
 
 /**
@@ -34,6 +56,7 @@ function SearchResultItem({
   isFocused,
   onToggleSelect,
   style,
+  getTagColor,
 }: SearchResultItemProps): ReactElement {
   // Determine background color based on selection and focus state
   const getBackgroundClass = (): string => {
@@ -95,7 +118,7 @@ function SearchResultItem({
             {result.tags && result.tags.length > 0 && (
               <>
                 {result.tags.map((tag) => (
-                  <Badge key={tag} size="sm">
+                  <Badge key={tag} size="sm" color={getTagColor(tag)}>
                     {tag}
                   </Badge>
                 ))}
@@ -124,6 +147,7 @@ function SearchResultItem({
  * - Copy selected snippets to clipboard
  */
 export function SearchOverlay(): ReactElement {
+  const { getTagColor } = useTags();
   const {
     searchQuery,
     setSearchQuery,
@@ -196,8 +220,9 @@ export function SearchOverlay(): ReactElement {
       // Concatenate content with double newline separator (empty line between)
       const content = selectedResults.map((r) => r.content).join('\n\n');
 
-      // Copy to clipboard using Tauri command
-      await invoke('copy_to_clipboard', { text: content });
+      // Copy to clipboard and record analytics using the combined command
+      const snippetIds = selectedResults.map((r) => r.id);
+      await invoke('copy_snippets_with_analytics', { snippetIds, text: content });
 
       // Show success feedback
       const count = selectedSnippets.size;
@@ -250,6 +275,9 @@ export function SearchOverlay(): ReactElement {
   const showResults = !isSearching && hasResults;
   const listHeight = Math.min(searchResults.length, MAX_VISIBLE_ITEMS) * ITEM_HEIGHT;
 
+  // Parse tag filter from search query
+  const [tagFilter, _remainingQuery] = parseTagFilter(searchQuery);
+
   return (
     <div className="flex flex-col h-screen bg-white dark:bg-gray-900 animate-fade-in-scale">
       {/* Header */}
@@ -274,6 +302,31 @@ export function SearchOverlay(): ReactElement {
             Esc
           </Button>
         </div>
+
+        {/* Tag filter indicator */}
+        {tagFilter && (
+          <div className="mt-2 flex items-center gap-2 animate-slide-down">
+            <Badge variant="primary" size="sm">
+              <svg
+                className="w-3 h-3 mr-1 inline"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
+                />
+              </svg>
+              Filtering by: {tagFilter}
+            </Badge>
+            <span className="text-xs text-gray-500 dark:text-gray-400">
+              Showing only snippets with this tag
+            </span>
+          </div>
+        )}
 
         {/* Selected count indicator */}
         {selectedSnippets.size > 0 && (
@@ -332,6 +385,7 @@ export function SearchOverlay(): ReactElement {
                   isFocused={index === focusedIndex}
                   onToggleSelect={() => toggleSelected(result.id)}
                   style={style}
+                  getTagColor={getTagColor}
                 />
               );
             }}

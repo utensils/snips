@@ -1,5 +1,7 @@
 import { type HTMLAttributes, type ReactElement, type ReactNode } from 'react';
 
+import { getTextColor } from '@/lib/color';
+
 export type BadgeVariant = 'default' | 'primary' | 'secondary' | 'success' | 'warning' | 'danger';
 export type BadgeSize = 'sm' | 'md';
 
@@ -7,6 +9,11 @@ export interface BadgeProps extends HTMLAttributes<HTMLSpanElement> {
   children: ReactNode;
   variant?: BadgeVariant;
   size?: BadgeSize;
+  /**
+   * Custom background color (hex). When provided, automatically calculates text color for contrast.
+   * Overrides variant prop.
+   */
+  color?: string;
 }
 
 const variantClasses: Record<BadgeVariant, string> = {
@@ -30,9 +37,38 @@ export function Badge({
   children,
   variant = 'default',
   size = 'md',
+  color,
   className = '',
+  style,
   ...props
 }: BadgeProps): ReactElement {
+  // If custom color is provided, use inline styles
+  if (color) {
+    const textColor = getTextColor(color);
+    const classes = [
+      'inline-flex items-center rounded-full font-medium',
+      sizeClasses[size],
+      className,
+    ]
+      .filter(Boolean)
+      .join(' ');
+
+    return (
+      <span
+        className={classes}
+        style={{
+          backgroundColor: color,
+          color: textColor,
+          ...style,
+        }}
+        {...props}
+      >
+        {children}
+      </span>
+    );
+  }
+
+  // Default behavior with variant classes
   const classes = [
     'inline-flex items-center rounded-full font-medium',
     variantClasses[variant],
@@ -43,7 +79,7 @@ export function Badge({
     .join(' ');
 
   return (
-    <span className={classes} {...props}>
+    <span className={classes} style={style} {...props}>
       {children}
     </span>
   );

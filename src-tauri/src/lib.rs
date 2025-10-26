@@ -184,7 +184,9 @@ pub fn run() {
             commands::storage_commands::import_from_json,
             commands::storage_commands::list_backups,
             commands::storage_commands::get_backup_config,
-            commands::storage_commands::update_backup_config
+            commands::storage_commands::update_backup_config,
+            commands::tag_commands::get_tags,
+            commands::tag_commands::update_tag_color_cmd
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

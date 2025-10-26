@@ -22,6 +22,7 @@ impl From<TagId> for i64 {
 pub struct Tag {
     pub id: TagId,
     pub name: String,
+    pub color: String,
 }
 
 /// Association between a snippet and a tag
@@ -50,6 +51,7 @@ mod tests {
         let tag = Tag {
             id: TagId(1),
             name: "rust".to_string(),
+            color: "#EDEDED".to_string(),
         };
 
         let json = serde_json::to_string(&tag).unwrap();
@@ -57,6 +59,7 @@ mod tests {
 
         assert_eq!(tag.id, deserialized.id);
         assert_eq!(tag.name, deserialized.name);
+        assert_eq!(tag.color, deserialized.color);
     }
 
     #[test]

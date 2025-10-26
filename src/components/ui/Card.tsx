@@ -7,9 +7,9 @@ export interface CardProps extends HTMLAttributes<HTMLDivElement> {
 }
 
 const variantClasses = {
-  default: 'bg-white border border-gray-200',
-  outlined: 'bg-transparent border border-gray-300',
-  elevated: 'bg-white shadow-md',
+  default: 'bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700',
+  outlined: 'bg-transparent border border-gray-300 dark:border-gray-600',
+  elevated: 'bg-white dark:bg-gray-800 shadow-md',
 };
 
 const paddingClasses = {
@@ -70,7 +70,10 @@ export function CardTitle({
   ...props
 }: CardTitleProps): ReactElement {
   return (
-    <Component className={`text-lg font-semibold text-gray-900 ${className}`} {...props}>
+    <Component
+      className={`text-lg font-semibold text-gray-900 dark:text-gray-100 ${className}`}
+      {...props}
+    >
       {children}
     </Component>
   );

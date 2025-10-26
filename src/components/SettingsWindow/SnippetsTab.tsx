@@ -1,11 +1,13 @@
 import { invoke } from '@tauri-apps/api/core';
 import React, { useState, useEffect, useMemo } from 'react';
 
+import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Checkbox } from '@/components/ui/Checkbox';
 import { Input } from '@/components/ui/Input';
 import { Spinner } from '@/components/ui/Spinner';
+import { useTags } from '@/hooks/useTags';
 import { getAllSnippets, deleteSnippet } from '@/lib/api';
 import type { Snippet } from '@/types';
 import type { ExportData } from '@/types/storage';
@@ -27,6 +29,26 @@ type SortOption =
   | 'updated_desc';
 
 /**
+ * Parse tag filter from query string
+ * Returns tuple of [tagName, remainingQuery]
+ */
+function parseTagFilter(query: string): [string | null, string] {
+  const colonPos = query.indexOf(':');
+  if (colonPos === -1) {
+    return [null, query];
+  }
+
+  const potentialTag = query.slice(0, colonPos);
+  // Tag names should be non-empty and not contain spaces
+  if (potentialTag && !potentialTag.includes(' ')) {
+    const remaining = query.slice(colonPos + 1).trim();
+    return [potentialTag, remaining];
+  }
+
+  return [null, query];
+}
+
+/**
  * SnippetsTab - Complete snippet management interface
  */
 export function SnippetsTab(): React.ReactElement {
@@ -34,6 +56,7 @@ export function SnippetsTab(): React.ReactElement {
   const [snippets, setSnippets] = useState<Snippet[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const { getTagColor } = useTags();
 
   // UI state
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -79,13 +102,25 @@ export function SnippetsTab(): React.ReactElement {
 
     // Filter by search query
     if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase();
-      result = result.filter((snippet) => {
-        const nameMatch = snippet.name.toLowerCase().includes(query);
-        const contentMatch = snippet.content.toLowerCase().includes(query);
-        const tagsMatch = snippet.tags?.some((tag) => tag.toLowerCase().includes(query));
-        return nameMatch || contentMatch || tagsMatch;
-      });
+      const [tagFilter, remainingQuery] = parseTagFilter(searchQuery);
+
+      // Apply tag filter first if present
+      if (tagFilter) {
+        result = result.filter((snippet) =>
+          snippet.tags?.some((tag) => tag.toLowerCase() === tagFilter.toLowerCase())
+        );
+      }
+
+      // Then apply text search if there's a remaining query
+      if (remainingQuery.trim()) {
+        const query = remainingQuery.toLowerCase();
+        result = result.filter((snippet) => {
+          const nameMatch = snippet.name.toLowerCase().includes(query);
+          const contentMatch = snippet.content.toLowerCase().includes(query);
+          const tagsMatch = snippet.tags?.some((tag) => tag.toLowerCase().includes(query));
+          return nameMatch || contentMatch || tagsMatch;
+        });
+      }
     }
 
     // Sort
@@ -303,6 +338,9 @@ export function SnippetsTab(): React.ReactElement {
   const isDetailPanelOpen = isCreating || selectedSnippet !== null;
   const hasSelection = selectedSnippetIds.size > 0;
 
+  // Parse tag filter for display
+  const [tagFilter] = parseTagFilter(searchQuery);
+
   return (
     <div className="flex h-full gap-6">
       {/* Left Panel - Snippet List */}
@@ -326,29 +364,57 @@ export function SnippetsTab(): React.ReactElement {
             </div>
 
             {/* Search and filters */}
-            <div className="flex gap-3 items-center">
-              <div className="flex-1">
-                <Input
-                  type="text"
-                  placeholder="Search snippets..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  aria-label="Search snippets"
-                />
+            <div className="space-y-2">
+              <div className="flex gap-3 items-center">
+                <div className="flex-1">
+                  <Input
+                    type="text"
+                    placeholder="Search snippets... (use 'tag:' to filter by tag)"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    aria-label="Search snippets"
+                    fullWidth
+                  />
+                </div>
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value as SortOption)}
+                  className="px-3 py-2 border border-gray-400 dark:border-gray-500 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 hover:border-gray-500 dark:hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent transition-colors"
+                  aria-label="Sort by"
+                >
+                  <option value="updated_desc">Recently Updated</option>
+                  <option value="updated_asc">Least Recently Updated</option>
+                  <option value="created_desc">Newest First</option>
+                  <option value="created_asc">Oldest First</option>
+                  <option value="name_asc">Name (A-Z)</option>
+                  <option value="name_desc">Name (Z-A)</option>
+                </select>
               </div>
-              <select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value as SortOption)}
-                className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
-                aria-label="Sort by"
-              >
-                <option value="updated_desc">Recently Updated</option>
-                <option value="updated_asc">Least Recently Updated</option>
-                <option value="created_desc">Newest First</option>
-                <option value="created_asc">Oldest First</option>
-                <option value="name_asc">Name (A-Z)</option>
-                <option value="name_desc">Name (Z-A)</option>
-              </select>
+
+              {/* Tag filter indicator */}
+              {tagFilter && (
+                <div className="flex items-center gap-2 px-3 py-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                  <Badge variant="primary" size="sm">
+                    <svg
+                      className="w-3 h-3 mr-1 inline"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
+                      />
+                    </svg>
+                    Filtering by: {tagFilter}
+                  </Badge>
+                  <span className="text-xs text-gray-500 dark:text-gray-400">
+                    Showing only snippets with this tag
+                  </span>
+                </div>
+              )}
             </div>
 
             {/* Bulk operations */}
@@ -428,6 +494,7 @@ export function SnippetsTab(): React.ReactElement {
                     onToggleSelect={() => toggleSnippetSelection(snippet.id)}
                     onClick={() => handleSnippetClick(snippet)}
                     onDelete={() => handleDeleteSingle(snippet)}
+                    getTagColor={getTagColor}
                   />
                 ))}
               </div>
@@ -488,6 +555,7 @@ interface SnippetListItemProps {
   onToggleSelect: () => void;
   onClick: () => void;
   onDelete: () => void;
+  getTagColor: (tagName: string) => string;
 }
 
 function SnippetListItem({
@@ -497,6 +565,7 @@ function SnippetListItem({
   onToggleSelect,
   onClick,
   onDelete,
+  getTagColor,
 }: SnippetListItemProps): React.ReactElement {
   const handleCheckboxChange = (e: React.MouseEvent): void => {
     e.stopPropagation();
@@ -528,7 +597,20 @@ function SnippetListItem({
 
         {/* Content */}
         <div className="flex-1 min-w-0">
-          <h3 className="font-medium text-gray-900 dark:text-gray-100 truncate">{snippet.name}</h3>
+          <div className="flex items-center gap-2 mb-1 flex-wrap">
+            <h3 className="font-medium text-gray-900 dark:text-gray-100 truncate">
+              {snippet.name}
+            </h3>
+            {snippet.tags && snippet.tags.length > 0 && (
+              <>
+                {snippet.tags.map((tag) => (
+                  <Badge key={tag} size="sm" color={getTagColor(tag)}>
+                    {tag}
+                  </Badge>
+                ))}
+              </>
+            )}
+          </div>
           {snippet.description && (
             <p className="text-sm text-gray-600 dark:text-gray-400 mt-1 truncate">
               {snippet.description}
@@ -536,9 +618,6 @@ function SnippetListItem({
           )}
           <div className="flex items-center gap-4 mt-2 text-xs text-gray-500 dark:text-gray-500">
             <span>Updated {formatRelativeTime(snippet.updated_at)}</span>
-            {snippet.tags && snippet.tags.length > 0 && (
-              <span className="truncate">Tags: {snippet.tags.join(', ')}</span>
-            )}
           </div>
         </div>
 

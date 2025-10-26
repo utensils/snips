@@ -5,6 +5,7 @@ pub mod settings_commands;
 pub mod shortcut_commands;
 pub mod snippet_commands;
 pub mod storage_commands;
+pub mod tag_commands;
 pub mod window_commands;
 
 // Re-export analytics commands
@@ -39,6 +40,9 @@ pub use storage_commands::{
     backup_database, export_to_json, get_backup_config, get_database_stats, import_from_json,
     list_backups, restore_database, update_backup_config,
 };
+
+// Re-export tag commands
+pub use tag_commands::{get_tags, update_tag_color_cmd};
 
 // Re-export window commands
 pub use window_commands::{

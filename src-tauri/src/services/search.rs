@@ -25,7 +25,7 @@ const RECENCY_OLD_BONUS: f64 = 0.5;
 /// # Arguments
 ///
 /// * `app` - Tauri application handle
-/// * `query` - Search query string
+/// * `query` - Search query string (supports "tag:" prefix for filtering by tag)
 /// * `limit` - Optional maximum number of results (defaults to 50, max 1000)
 ///
 /// # Returns
@@ -35,6 +35,12 @@ const RECENCY_OLD_BONUS: f64 = 0.5;
 /// # Errors
 ///
 /// Returns `AppError` if the query fails or database is unavailable.
+///
+/// # Tag Filtering
+///
+/// Query can include a tag filter using the format "tagname:search terms"
+/// - "python:" - shows all snippets with the "python" tag
+/// - "python:async" - shows snippets with "python" tag containing "async"
 pub async fn search_snippets(
     app: &AppHandle,
     query: &str,
@@ -58,43 +64,122 @@ pub async fn search_snippets(
         return Ok(Vec::new());
     }
 
+    // Parse query to extract tag filter
+    let (tag_filter, search_query) = parse_tag_filter(query);
+
     // Build FTS5 query - use simple match for now
-    let fts_query = build_fts5_query(query);
+    let fts_query = build_fts5_query(search_query);
 
     // Execute search query with relevance scoring
     // FTS5 provides bm25() ranking function for relevance
     // We also join with analytics to get usage statistics
-    let results = sqlx::query(
-        r#"
-        SELECT
-            s.id,
-            s.name,
-            s.content,
-            s.description,
-            s.created_at,
-            s.updated_at,
-            COALESCE(usage.count, 0) as usage_count,
-            usage.last_used,
-            snippets_fts.rank as fts_rank
-        FROM snippets_fts
-        INNER JOIN snippets s ON snippets_fts.rowid = s.id
-        LEFT JOIN (
+    let results = if let Some(tag) = tag_filter {
+        // Tag-filtered search: join with snippet_tags and tags tables
+        if fts_query.is_empty() {
+            // No search query, just show all snippets with this tag
+            sqlx::query(
+                r#"
+                SELECT
+                    s.id,
+                    s.name,
+                    s.content,
+                    s.description,
+                    s.created_at,
+                    s.updated_at,
+                    COALESCE(usage.count, 0) as usage_count,
+                    usage.last_used,
+                    0.0 as fts_rank
+                FROM snippets s
+                INNER JOIN snippet_tags st ON s.id = st.snippet_id
+                INNER JOIN tags t ON st.tag_id = t.id
+                LEFT JOIN (
+                    SELECT
+                        snippet_id,
+                        COUNT(*) as count,
+                        MAX(used_at) as last_used
+                    FROM analytics
+                    GROUP BY snippet_id
+                ) usage ON s.id = usage.snippet_id
+                WHERE LOWER(t.name) = LOWER(?)
+                ORDER BY s.updated_at DESC
+                LIMIT ?
+                "#,
+            )
+            .bind(tag)
+            .bind(limit)
+            .fetch_all(&pool)
+            .await?
+        } else {
+            // Tag-filtered FTS search
+            sqlx::query(
+                r#"
+                SELECT
+                    s.id,
+                    s.name,
+                    s.content,
+                    s.description,
+                    s.created_at,
+                    s.updated_at,
+                    COALESCE(usage.count, 0) as usage_count,
+                    usage.last_used,
+                    snippets_fts.rank as fts_rank
+                FROM snippets_fts
+                INNER JOIN snippets s ON snippets_fts.rowid = s.id
+                INNER JOIN snippet_tags st ON s.id = st.snippet_id
+                INNER JOIN tags t ON st.tag_id = t.id
+                LEFT JOIN (
+                    SELECT
+                        snippet_id,
+                        COUNT(*) as count,
+                        MAX(used_at) as last_used
+                    FROM analytics
+                    GROUP BY snippet_id
+                ) usage ON s.id = usage.snippet_id
+                WHERE snippets_fts MATCH ? AND LOWER(t.name) = LOWER(?)
+                ORDER BY snippets_fts.rank
+                LIMIT ?
+                "#,
+            )
+            .bind(&fts_query)
+            .bind(tag)
+            .bind(limit)
+            .fetch_all(&pool)
+            .await?
+        }
+    } else {
+        // Regular FTS search without tag filter
+        sqlx::query(
+            r#"
             SELECT
-                snippet_id,
-                COUNT(*) as count,
-                MAX(used_at) as last_used
-            FROM analytics
-            GROUP BY snippet_id
-        ) usage ON s.id = usage.snippet_id
-        WHERE snippets_fts MATCH ?
-        ORDER BY snippets_fts.rank
-        LIMIT ?
-        "#,
-    )
-    .bind(&fts_query)
-    .bind(limit)
-    .fetch_all(&pool)
-    .await?;
+                s.id,
+                s.name,
+                s.content,
+                s.description,
+                s.created_at,
+                s.updated_at,
+                COALESCE(usage.count, 0) as usage_count,
+                usage.last_used,
+                snippets_fts.rank as fts_rank
+            FROM snippets_fts
+            INNER JOIN snippets s ON snippets_fts.rowid = s.id
+            LEFT JOIN (
+                SELECT
+                    snippet_id,
+                    COUNT(*) as count,
+                    MAX(used_at) as last_used
+                FROM analytics
+                GROUP BY snippet_id
+            ) usage ON s.id = usage.snippet_id
+            WHERE snippets_fts MATCH ?
+            ORDER BY snippets_fts.rank
+            LIMIT ?
+            "#,
+        )
+        .bind(&fts_query)
+        .bind(limit)
+        .fetch_all(&pool)
+        .await?
+    };
 
     // Convert to SearchResult with computed relevance scores
     let mut search_results = Vec::new();
@@ -144,6 +229,35 @@ pub async fn search_snippets(
     });
 
     Ok(search_results)
+}
+
+/// Parse tag filter from query string
+///
+/// Extracts tag filter in format "tagname:" from the beginning of the query.
+/// Returns tuple of (tag_filter, remaining_query).
+///
+/// # Examples
+///
+/// ```
+/// assert_eq!(parse_tag_filter("python:"), (Some("python"), ""));
+/// assert_eq!(parse_tag_filter("python:async"), (Some("python"), "async"));
+/// assert_eq!(parse_tag_filter("react hooks"), (None, "react hooks"));
+/// ```
+fn parse_tag_filter(query: &str) -> (Option<&str>, &str) {
+    // Look for the first colon
+    if let Some(colon_pos) = query.find(':') {
+        // Check if there's text before the colon (potential tag name)
+        let potential_tag = &query[..colon_pos];
+
+        // Tag names should be non-empty and not contain spaces
+        if !potential_tag.is_empty() && !potential_tag.contains(char::is_whitespace) {
+            let remaining = query[colon_pos + 1..].trim();
+            return (Some(potential_tag), remaining);
+        }
+    }
+
+    // No tag filter found
+    (None, query)
 }
 
 /// Build FTS5 query from user input
@@ -241,6 +355,46 @@ fn calculate_relevance_score(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_parse_tag_filter() {
+        // Test tag filter with no search query
+        assert_eq!(parse_tag_filter("python:"), (Some("python"), ""));
+
+        // Test tag filter with search query
+        assert_eq!(parse_tag_filter("python:async"), (Some("python"), "async"));
+        assert_eq!(
+            parse_tag_filter("python: async await"),
+            (Some("python"), "async await")
+        );
+
+        // Test no tag filter
+        assert_eq!(parse_tag_filter("react hooks"), (None, "react hooks"));
+
+        // Test colon in middle of word (not a tag filter)
+        assert_eq!(
+            parse_tag_filter("http://example.com"),
+            (Some("http"), "//example.com")
+        );
+
+        // Test tag with spaces before colon (not valid)
+        assert_eq!(
+            parse_tag_filter("python rust:query"),
+            (None, "python rust:query")
+        );
+
+        // Test empty string
+        assert_eq!(parse_tag_filter(""), (None, ""));
+
+        // Test just colon
+        assert_eq!(parse_tag_filter(":"), (None, ":"));
+
+        // Test multiple colons (uses first)
+        assert_eq!(parse_tag_filter("tag:foo:bar"), (Some("tag"), "foo:bar"));
+
+        // Test case sensitivity preserved
+        assert_eq!(parse_tag_filter("Python:"), (Some("Python"), ""));
+    }
 
     #[test]
     fn test_build_fts5_query() {

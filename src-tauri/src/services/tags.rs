@@ -1,3 +1,4 @@
+use crate::models::tag::Tag;
 use crate::services::database::get_pool;
 use crate::utils::error::AppError;
 use sqlx::Row;
@@ -9,6 +10,7 @@ use tauri::AppHandle;
 ///
 /// * `app` - Tauri application handle
 /// * `tag_name` - The name of the tag to get or create
+/// * `color` - Optional color for the tag (defaults to #EDEDED if not provided or if tag exists)
 ///
 /// # Returns
 ///
@@ -17,7 +19,11 @@ use tauri::AppHandle;
 /// # Errors
 ///
 /// Returns `AppError` if database operations fail
-pub async fn get_or_create_tag(app: &AppHandle, tag_name: &str) -> Result<i64, AppError> {
+pub async fn get_or_create_tag(
+    app: &AppHandle,
+    tag_name: &str,
+    color: Option<&str>,
+) -> Result<i64, AppError> {
     let pool = get_pool(app)?;
 
     // Try to get existing tag
@@ -31,8 +37,10 @@ pub async fn get_or_create_tag(app: &AppHandle, tag_name: &str) -> Result<i64, A
     }
 
     // Create new tag if it doesn't exist
-    let result = sqlx::query("INSERT INTO tags (name) VALUES (?)")
+    let tag_color = color.unwrap_or("#EDEDED");
+    let result = sqlx::query("INSERT INTO tags (name, color) VALUES (?, ?)")
         .bind(tag_name)
+        .bind(tag_color)
         .execute(&pool)
         .await?;
 
@@ -67,7 +75,7 @@ pub async fn associate_tags(
             continue;
         }
 
-        let tag_id = get_or_create_tag(app, tag_name).await?;
+        let tag_id = get_or_create_tag(app, tag_name, None).await?;
 
         // Create snippet-tag association (ignore duplicates)
         sqlx::query("INSERT OR IGNORE INTO snippet_tags (snippet_id, tag_id) VALUES (?, ?)")
@@ -131,6 +139,71 @@ pub async fn remove_snippet_tags(app: &AppHandle, snippet_id: i64) -> Result<(),
         .bind(snippet_id)
         .execute(&pool)
         .await?;
+
+    Ok(())
+}
+
+/// Gets all tags with their metadata
+///
+/// # Arguments
+///
+/// * `app` - Tauri application handle
+///
+/// # Returns
+///
+/// Vector of all tags with their IDs, names, and colors
+///
+/// # Errors
+///
+/// Returns `AppError` if database operations fail
+pub async fn get_all_tags(app: &AppHandle) -> Result<Vec<Tag>, AppError> {
+    let pool = get_pool(app)?;
+
+    let tags = sqlx::query("SELECT id, name, color FROM tags ORDER BY name")
+        .fetch_all(&pool)
+        .await?;
+
+    Ok(tags
+        .iter()
+        .map(|row| Tag {
+            id: row.get::<i64, _>(0).into(),
+            name: row.get(1),
+            color: row.get(2),
+        })
+        .collect())
+}
+
+/// Updates the color of a tag
+///
+/// # Arguments
+///
+/// * `app` - Tauri application handle
+/// * `tag_name` - The name of the tag to update
+/// * `color` - The new color (hex format)
+///
+/// # Returns
+///
+/// `Ok(())` on success
+///
+/// # Errors
+///
+/// Returns `AppError` if database operations fail or tag doesn't exist
+pub async fn update_tag_color(
+    app: &AppHandle,
+    tag_name: &str,
+    color: &str,
+) -> Result<(), AppError> {
+    let pool = get_pool(app)?;
+
+    let result = sqlx::query("UPDATE tags SET color = ? WHERE name = ?")
+        .bind(color)
+        .bind(tag_name)
+        .execute(&pool)
+        .await?;
+
+    if result.rows_affected() == 0 {
+        return Err(AppError::NotFound(format!("Tag '{}' not found", tag_name)));
+    }
 
     Ok(())
 }
