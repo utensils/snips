@@ -8,6 +8,9 @@ export interface CardProps extends HTMLAttributes<HTMLDivElement> {
   padding?: 'none' | 'sm' | 'md' | 'lg';
 }
 
+type CardPadding = NonNullable<CardProps['padding']>;
+type CardVariant = NonNullable<CardProps['variant']>;
+
 /**
  * Reusable Card component for grouping content
  */
@@ -18,14 +21,14 @@ export function Card({
   className = '',
   ...props
 }: CardProps): ReactElement {
-  const paddingMap: Record<CardProps['padding'], 'sm' | 'md' | 'lg'> = {
+  const paddingMap: Record<CardPadding, 'sm' | 'md' | 'lg'> = {
     none: 'sm',
     sm: 'sm',
     md: 'md',
     lg: 'lg',
   };
 
-  const variantClasses: Record<CardProps['variant'], string> = {
+  const variantClasses: Record<CardVariant, string> = {
     default: '',
     outlined: 'bg-background/50 supports-[backdrop-filter]:backdrop-blur-sm',
     elevated: 'shadow-lg shadow-black/10 dark:shadow-black/40',

@@ -5,6 +5,7 @@ import { Stack } from '@/components/layout/Stack';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import type { AppSettings, GlobalShortcuts } from '@/types/settings';
+import type { ShortcutWatchdogSnapshot } from '@/types/watchdog';
 
 import { ShortcutRecorder } from './ShortcutRecorder';
 
@@ -52,13 +53,11 @@ export function ShortcutsTab(): ReactElement {
   const [editingShortcut, setEditingShortcut] = useState<keyof GlobalShortcuts | null>(null);
   const [hasChanges, setHasChanges] = useState(false);
   const [conflicts, setConflicts] = useState<Map<keyof GlobalShortcuts, string>>(new Map());
+  const [watchdog, setWatchdog] = useState<ShortcutWatchdogSnapshot | null>(null);
+  const [watchdogLoading, setWatchdogLoading] = useState(false);
+  const [watchdogError, setWatchdogError] = useState<string | null>(null);
 
-  // Load current shortcuts from settings
-  useEffect(() => {
-    loadShortcuts();
-  }, []);
-
-  const loadShortcuts = async (): Promise<void> => {
+  const loadShortcuts = useCallback(async (): Promise<void> => {
     try {
       setLoading(true);
       setError(null);
@@ -70,7 +69,27 @@ export function ShortcutsTab(): ReactElement {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  const loadWatchdog = useCallback(async (): Promise<void> => {
+    try {
+      setWatchdogLoading(true);
+      setWatchdogError(null);
+      const snapshot = await invoke<ShortcutWatchdogSnapshot>('get_shortcut_watchdog');
+      setWatchdog(snapshot);
+    } catch (err) {
+      console.error('Error loading shortcut watchdog diagnostics:', err);
+      setWatchdogError(`Failed to load watchdog diagnostics: ${err}`);
+    } finally {
+      setWatchdogLoading(false);
+    }
+  }, []);
+
+  // Load current shortcuts from settings
+  useEffect(() => {
+    void loadShortcuts();
+    void loadWatchdog();
+  }, [loadShortcuts, loadWatchdog]);
 
   /**
    * Validate a shortcut string
@@ -195,6 +214,10 @@ export function ShortcutsTab(): ReactElement {
     setError(null);
   };
 
+  const handleRefreshWatchdog = async (): Promise<void> => {
+    await loadWatchdog();
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-full">
@@ -316,6 +339,116 @@ export function ShortcutsTab(): ReactElement {
             </ul>
           </div>
         </Card>
+
+        {/* Hyprland diagnostics */}
+        <Card className="p-6 space-y-4">
+          <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                Hyprland Shortcut Watchdog
+              </h3>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                Monitors D-Bus latency for compositor-triggered shortcuts (200&nbsp;ms budget).
+              </p>
+            </div>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={handleRefreshWatchdog}
+              disabled={watchdogLoading}
+            >
+              {watchdogLoading ? 'Checking…' : 'Refresh'}
+            </Button>
+          </div>
+
+          {watchdogError && (
+            <div className="text-sm text-red-600 dark:text-red-400">{watchdogError}</div>
+          )}
+
+          {watchdogLoading && !watchdog && (
+            <div className="text-sm text-gray-600 dark:text-gray-400">
+              Gathering watchdog diagnostics…
+            </div>
+          )}
+
+          {watchdog && (
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-1">
+                <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                  State
+                </p>
+                <p className="font-medium text-gray-900 dark:text-gray-100">
+                  {watchdog.enabled
+                    ? watchdog.monitor_running
+                      ? 'Active (dbus-monitor running)'
+                      : 'Enabled, waiting for dbus-monitor'
+                    : 'Disabled (non-Hyprland environment)'}
+                </p>
+                {watchdog.last_error && (
+                  <p className="text-xs text-red-600 dark:text-red-400 mt-1">
+                    {watchdog.last_error}
+                  </p>
+                )}
+              </div>
+
+              <div className="space-y-1">
+                <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                  Last Invocation
+                </p>
+                <p className="font-medium text-gray-900 dark:text-gray-100">
+                  {formatTimestamp(watchdog.last_invoked_at)}
+                </p>
+                <p className="text-xs text-gray-600 dark:text-gray-400">
+                  Pending requests: {watchdog.pending_count}
+                </p>
+              </div>
+
+              <div className="space-y-1">
+                <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                  Last Latency
+                </p>
+                <p
+                  className={`font-medium ${
+                    watchdog.last_within_deadline === false
+                      ? 'text-red-600 dark:text-red-400'
+                      : 'text-gray-900 dark:text-gray-100'
+                  }`}
+                >
+                  {formatLatency(watchdog.last_latency_ms)}
+                  {watchdog.last_within_deadline === false ? ' (exceeded 200 ms)' : ''}
+                </p>
+                <p className="text-xs text-gray-600 dark:text-gray-400">
+                  Average latency: {formatLatency(watchdog.average_latency_ms)}
+                </p>
+              </div>
+
+              <div className="space-y-1">
+                <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                  Success Ratio
+                </p>
+                <p className="font-medium text-gray-900 dark:text-gray-100">
+                  {watchdog.success_count} ok / {watchdog.deadline_miss_count} misses
+                </p>
+                <p className="text-xs text-gray-600 dark:text-gray-400">
+                  Budget breaches flag compositor keybind delays.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {watchdog?.notes?.length ? (
+            <div className="space-y-2">
+              <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                Notes
+              </p>
+              <ul className="text-sm text-gray-700 dark:text-gray-300 list-disc list-inside space-y-1">
+                {watchdog.notes.map((note, index) => (
+                  <li key={`${note}-${index}`}>{note}</li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+        </Card>
       </Stack>
     </div>
   );
@@ -334,4 +467,18 @@ function formatShortcut(shortcut: string): string {
     .replace(/Alt/g, '⌥')
     .replace(/Option/g, '⌥')
     .replace(/\+/g, ' + ');
+}
+
+function formatLatency(value: number | null): string {
+  if (value === null || Number.isNaN(value)) {
+    return '—';
+  }
+  return `${value.toFixed(0)} ms`;
+}
+
+function formatTimestamp(value: string | null): string {
+  if (!value) return '—';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleString();
 }

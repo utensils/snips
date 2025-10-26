@@ -13,7 +13,7 @@ use zbus::{interface, ConnectionBuilder};
 use tauri::Emitter;
 
 #[cfg(target_os = "linux")]
-use crate::services::window;
+use crate::services::{dbus_watchdog, window};
 
 /// D-Bus interface for Snips
 ///
@@ -198,6 +198,8 @@ pub async fn init_dbus_service(app: AppHandle) {
             eprintln!(
                 "[INFO] [dbus_service] Methods: ShowQuickAdd, ShowSearch, ToggleSearch, ShowManagement, ReloadTheme, window_diagnostics"
             );
+
+            dbus_watchdog::start_watchdog(&app);
 
             // Keep the connection alive indefinitely in a background task
             // zbus requires the connection to stay alive to process D-Bus messages

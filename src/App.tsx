@@ -74,12 +74,23 @@ function App(): ReactElement {
 
           try {
             const probe = await invoke<ClipboardProbeResult>('probe_clipboard_support');
+            let message: string | null = null;
+
             if (!probe.primary_supported) {
-              const message = probe.primary_error
+              message = probe.primary_error
                 ? `Primary selection is unavailable (${probe.primary_error}). Snips will fall back to the standard clipboard.`
                 : 'Primary selection is unavailable on this compositor. Snips will fall back to the standard clipboard.';
-              setClipboardWarning(message);
+            } else if (!probe.clipboard_supported) {
+              message = probe.clipboard_error
+                ? `Clipboard access is restricted (${probe.clipboard_error}).`
+                : 'Clipboard access is restricted. Snips may not capture text automatically.';
+            } else if (probe.sandboxed && !probe.portal_supported) {
+              message = probe.portal_error
+                ? `GTK portal clipboard fallback is unavailable (${probe.portal_error}). Selected text capture may require manual permission tweaks.`
+                : 'GTK portal clipboard fallback is unavailable. Snips may have limited clipboard access inside this sandbox.';
             }
+
+            setClipboardWarning(message);
           } catch (err) {
             if (import.meta.env.DEV) {
               console.warn('Clipboard probe failed', err);

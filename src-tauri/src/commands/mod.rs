@@ -3,6 +3,7 @@ pub mod clipboard_commands;
 pub mod search_commands;
 pub mod settings_commands;
 pub mod shortcut_commands;
+pub mod shortcut_diagnostics;
 pub mod snippet_commands;
 pub mod storage_commands;
 pub mod theme_commands;
@@ -29,6 +30,9 @@ pub use shortcut_commands::{
     get_default_shortcuts, is_shortcut_valid, register_custom_shortcut,
     reregister_default_shortcuts, unregister_shortcut,
 };
+
+// Re-export shortcut diagnostics command
+pub use shortcut_diagnostics::get_shortcut_watchdog;
 
 // Re-export snippet commands
 pub use snippet_commands::{

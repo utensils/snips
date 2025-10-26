@@ -533,6 +533,8 @@ pub fn show_window<R: Runtime>(window: &WebviewWindow<R>) -> Result<(), AppError
     let focus_result = focus_window_with_backoff(window);
     log_focus_metrics(window, &focus_result);
     record_focus_metrics(window.label(), focus_result);
+    #[cfg(target_os = "linux")]
+    crate::services::dbus_watchdog::record_focus_outcome(window.label(), focus_result.success);
     record_visibility_state(window.label(), true);
     if !focus_result.success {
         eprintln!(
