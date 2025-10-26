@@ -33,6 +33,38 @@
   --ring: 224.3 76.3% 48%;
 }
 
+html[data-platform='linux'] {
+  --background: 210 20% 97%;
+  --foreground: 218 15% 20%;
+  --primary: 216 92% 60%;
+  --primary-foreground: 210 40% 98%;
+  --secondary: 215 18% 92%;
+  --secondary-foreground: 218 15% 24%;
+  --accent: 216 92% 60%;
+  --accent-foreground: 210 40% 98%;
+  --muted: 215 16% 88%;
+  --muted-foreground: 218 12% 35%;
+  --border: 215 18% 85%;
+  --input: 215 18% 85%;
+  --ring: 216 92% 60%;
+}
+
+html[data-platform='linux'].dark {
+  --background: 220 15% 14%;
+  --foreground: 210 40% 98%;
+  --primary: 216 85% 66%;
+  --primary-foreground: 220 15% 14%;
+  --secondary: 220 12% 22%;
+  --secondary-foreground: 210 40% 98%;
+  --accent: 216 85% 66%;
+  --accent-foreground: 220 15% 14%;
+  --muted: 220 10% 26%;
+  --muted-foreground: 210 24% 70%;
+  --border: 220 12% 30%;
+  --input: 220 12% 30%;
+  --ring: 216 85% 66%;
+}
+
 * {
   border-color: hsl(var(--border));
 }
@@ -40,7 +72,9 @@
 body {
   background-color: hsl(var(--background));
   color: hsl(var(--foreground));
-  font-feature-settings: 'rlig' 1, 'calt' 1;
+  font-feature-settings:
+    'rlig' 1,
+    'calt' 1;
 }
 
 /* Screen reader only utility */
@@ -100,13 +134,21 @@ body {
 }
 
 @keyframes shake {
-  0%, 100% {
+  0%,
+  100% {
     transform: translateX(0);
   }
-  10%, 30%, 50%, 70%, 90% {
+  10%,
+  30%,
+  50%,
+  70%,
+  90% {
     transform: translateX(-4px);
   }
-  20%, 40%, 60%, 80% {
+  20%,
+  40%,
+  60%,
+  80% {
     transform: translateX(4px);
   }
 }
@@ -138,7 +180,10 @@ body {
 }
 
 .transition-colors-smooth {
-  transition: color 0.15s ease-in-out, background-color 0.15s ease-in-out, border-color 0.15s ease-in-out;
+  transition:
+    color 0.15s ease-in-out,
+    background-color 0.15s ease-in-out,
+    border-color 0.15s ease-in-out;
 }
 
 /* Focus ring with smooth transition */

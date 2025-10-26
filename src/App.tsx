@@ -1,4 +1,5 @@
 import { getCurrentWindow } from '@tauri-apps/api/window';
+import { platform } from '@tauri-apps/plugin-os';
 import { type ReactElement, useEffect, useState } from 'react';
 
 import { QuickAddDialog } from '@/components/QuickAddDialog';
@@ -15,6 +16,22 @@ function App(): ReactElement {
 
   // Initialize theme (system preference detection)
   useTheme();
+
+  useEffect(() => {
+    const applyPlatform = async (): Promise<void> => {
+      try {
+        const platformName = await platform();
+        const root = document.documentElement;
+        root.setAttribute('data-platform', platformName);
+      } catch (err) {
+        if (import.meta.env.DEV) {
+          console.error('Failed to determine platform', err);
+        }
+      }
+    };
+
+    applyPlatform();
+  }, []);
 
   useEffect(() => {
     const getWindowLabel = async (): Promise<void> => {
