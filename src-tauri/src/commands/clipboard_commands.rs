@@ -2,54 +2,6 @@ use crate::utils::error::AppError;
 use serde::Serialize;
 use tauri::AppHandle;
 
-#[cfg(target_os = "linux")]
-mod portal_clipboard {
-    use super::AppError;
-    use gdk4::{prelude::DisplayExt, Display};
-
-    pub fn read_text() -> Result<Option<String>, AppError> {
-        let display = Display::default().ok_or_else(|| {
-            AppError::External("GTK portal clipboard unavailable (no display)".to_string())
-        })?;
-
-        let clipboard = display.clipboard();
-        let clipboard_clone = clipboard.clone();
-        let context = gdk4::glib::MainContext::default();
-        let _guard = context.acquire().map_err(|err| {
-            AppError::External(format!("Failed to acquire GTK main context: {}", err))
-        })?;
-
-        let result = context.block_on(async move {
-            clipboard_clone
-                .read_text_future()
-                .await
-                .map(|opt| opt.map(|gstr| gstr.to_string()))
-        });
-
-        result.map_err(|err| AppError::External(format!("Portal clipboard read failed: {}", err)))
-    }
-
-    pub fn write_text(text: &str) -> Result<(), AppError> {
-        let display = Display::default().ok_or_else(|| {
-            AppError::External("GTK portal clipboard unavailable (no display)".to_string())
-        })?;
-
-        let clipboard = display.clipboard();
-        let clipboard_clone = clipboard.clone();
-        let text_owned = text.to_string();
-        let context = gdk4::glib::MainContext::default();
-        let _guard = context.acquire().map_err(|err| {
-            AppError::External(format!("Failed to acquire GTK main context: {}", err))
-        })?;
-
-        context
-            .with_thread_default(move || {
-                clipboard_clone.set_text(&text_owned);
-            })
-            .map_err(|err| AppError::External(format!("Portal clipboard write failed: {}", err)))
-    }
-}
-
 /// Get the currently selected text from the active application.
 ///
 /// On macOS, this uses AppleScript to simulate Cmd+C and read the clipboard.
@@ -276,29 +228,10 @@ async fn get_clipboard_content() -> Result<String, String> {
             }
             Err(err) => {
                 eprintln!(
-                    "[DEBUG] get_clipboard_content: arboard read failed, attempting GTK portal fallback: {}",
+                    "[DEBUG] get_clipboard_content: arboard read failed: {}",
                     err
                 );
-
-                match tokio::task::spawn_blocking(portal_clipboard::read_text).await {
-                    Ok(Ok(Some(text))) => {
-                        eprintln!(
-                            "[DEBUG] get_clipboard_content: portal fallback succeeded ({} chars)",
-                            text.len()
-                        );
-                        Ok(text)
-                    }
-                    Ok(Ok(None)) => Err(AppError::NotFound(
-                        "Portal clipboard returned empty content".to_string(),
-                    )
-                    .into()),
-                    Ok(Err(portal_err)) => Err(portal_err.into()),
-                    Err(join_err) => Err(AppError::External(format!(
-                        "Portal clipboard task failed: {}",
-                        join_err
-                    ))
-                    .into()),
-                }
+                Err(AppError::External(format!("Failed to read clipboard: {}", err)).into())
             }
         }
     }
@@ -375,19 +308,9 @@ pub async fn probe_clipboard_support() -> Result<ClipboardProbeResult, String> {
             }
         }
 
-        if result.sandboxed || !result.clipboard_supported {
-            match tokio::task::spawn_blocking(portal_clipboard::read_text).await {
-                Ok(Ok(Some(_))) | Ok(Ok(None)) => {
-                    result.portal_supported = true;
-                }
-                Ok(Err(err)) => {
-                    result.portal_error = Some(err.to_string());
-                }
-                Err(join_err) => {
-                    result.portal_error =
-                        Some(format!("Portal clipboard task failed: {}", join_err));
-                }
-            }
+        if result.sandboxed {
+            result.portal_error =
+                Some("GTK portal fallback disabled to avoid GTK version conflicts".to_string());
         }
 
         Ok(result)
@@ -445,53 +368,17 @@ async fn set_clipboard_content(text: &str) -> Result<(), String> {
             &text[..text.len().min(50)]
         );
 
-        match Clipboard::new() {
-            Ok(mut clipboard) => match clipboard.set_text(text.to_string()) {
-                Ok(()) => Ok(()),
-                Err(err) => {
-                    eprintln!(
-                        "[DEBUG] set_clipboard_content: arboard write failed, attempting GTK portal fallback: {}",
-                        err
-                    );
+        let mut clipboard = Clipboard::new().map_err(|e| {
+            eprintln!(
+                "[DEBUG] set_clipboard_content: Failed to create clipboard via arboard: {}",
+                e
+            );
+            AppError::External(format!("Failed to access clipboard: {}", e))
+        })?;
 
-                    let text_owned = text.to_string();
-                    match tokio::task::spawn_blocking(move || {
-                        portal_clipboard::write_text(&text_owned)
-                    })
-                    .await
-                    {
-                        Ok(Ok(())) => {
-                            eprintln!("[DEBUG] set_clipboard_content: portal fallback succeeded");
-                            Ok(())
-                        }
-                        Ok(Err(portal_err)) => Err(portal_err.into()),
-                        Err(join_err) => Err(AppError::External(format!(
-                            "Portal clipboard task failed: {}",
-                            join_err
-                        ))
-                        .into()),
-                    }
-                }
-            },
-            Err(e) => {
-                eprintln!(
-                    "[DEBUG] set_clipboard_content: Failed to create clipboard via arboard: {}",
-                    e
-                );
-                let text_owned = text.to_string();
-                match tokio::task::spawn_blocking(move || portal_clipboard::write_text(&text_owned))
-                    .await
-                {
-                    Ok(Ok(())) => Ok(()),
-                    Ok(Err(portal_err)) => Err(portal_err.into()),
-                    Err(join_err) => Err(AppError::External(format!(
-                        "Portal clipboard task failed: {}",
-                        join_err
-                    ))
-                    .into()),
-                }
-            }
-        }
+        clipboard.set_text(text.to_string()).map_err(|err| {
+            AppError::External(format!("Failed to write to clipboard: {}", err)).into()
+        })
     }
 
     #[cfg(not(any(target_os = "macos", target_os = "linux")))]

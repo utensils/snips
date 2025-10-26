@@ -47,4 +47,3 @@ once_cell = "1.19"
 
 [target.'cfg(target_os = "linux")'.dependencies]
 zbus = "4.4"
-gdk4 = "0.10"
