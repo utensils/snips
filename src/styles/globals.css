@@ -15,6 +15,7 @@
   --input: 214.3 31.8% 91.4%;
   --ring: 221.2 83.2% 53.3%;
   --radius: 0.5rem;
+  --font-family-base: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
 
 .dark {
@@ -47,6 +48,7 @@ html[data-platform='linux'] {
   --border: 215 18% 85%;
   --input: 215 18% 85%;
   --ring: 216 92% 60%;
+  --font-family-base: 'Cantarell', 'Inter', 'Ubuntu', 'DejaVu Sans', sans-serif;
 }
 
 html[data-platform='linux'].dark {
@@ -63,6 +65,15 @@ html[data-platform='linux'].dark {
   --border: 220 12% 30%;
   --input: 220 12% 30%;
   --ring: 216 85% 66%;
+}
+
+html[data-platform='macos'] {
+  --font-family-base:
+    'SF Pro Text', 'San Francisco', -apple-system, BlinkMacSystemFont, 'Inter', sans-serif;
+}
+
+html[data-platform='windows'] {
+  --font-family-base: 'Segoe UI', 'Inter', sans-serif;
 }
 
 .window-shell {
@@ -103,6 +114,7 @@ body {
   font-feature-settings:
     'rlig' 1,
     'calt' 1;
+  font-family: var(--font-family-base);
 }
 
 /* Screen reader only utility */
