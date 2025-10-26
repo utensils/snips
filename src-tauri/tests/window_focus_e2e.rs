@@ -7,8 +7,8 @@
 
 use snips_lib::services::window::{
     collect_window_diagnostics, hide_quick_add_window, hide_search_window, show_search_window,
-    show_settings_window, WindowDiagnostic, QUICK_ADD_WINDOW_LABEL, SEARCH_WINDOW_LABEL,
-    SETTINGS_WINDOW_LABEL,
+    show_settings_window, toggle_search_window, WindowDiagnostic, QUICK_ADD_WINDOW_LABEL,
+    SEARCH_WINDOW_LABEL, SETTINGS_WINDOW_LABEL,
 };
 
 fn build_mock_app() -> tauri::App<tauri::test::MockRuntime> {
@@ -116,4 +116,29 @@ fn window_sequence_reports_expected_visibility() {
     std::env::remove_var("SNIPS_ASSUME_PROFILE_TOP");
     std::env::remove_var("SNIPS_ASSUME_WINDOW_VISIBILITY");
     std::env::remove_var("SNIPS_METRICS");
+}
+
+#[test]
+fn toggle_search_window_creates_and_shows_on_first_call() {
+    std::env::set_var("HYPRLAND_INSTANCE_SIGNATURE", "snips-test-toggle");
+    std::env::set_var("SNIPS_ASSUME_PROFILE_TOP", "1");
+    std::env::set_var("SNIPS_ASSUME_WINDOW_VISIBILITY", "1");
+    snips_lib::services::window::reset_focus_metrics_for_tests();
+
+    let app = build_mock_app();
+    let handle = app.handle();
+
+    toggle_search_window(&handle).expect("toggle should create and show search window");
+    let diagnostics = collect_window_diagnostics(&handle);
+    let search_diag = find_diag(&diagnostics, SEARCH_WINDOW_LABEL);
+    assert_eq!(search_diag.is_visible, Some(true));
+
+    toggle_search_window(&handle).expect("toggle should hide search window");
+    let diagnostics = collect_window_diagnostics(&handle);
+    let search_diag = find_diag(&diagnostics, SEARCH_WINDOW_LABEL);
+    assert_eq!(search_diag.is_visible, Some(false));
+
+    std::env::remove_var("HYPRLAND_INSTANCE_SIGNATURE");
+    std::env::remove_var("SNIPS_ASSUME_PROFILE_TOP");
+    std::env::remove_var("SNIPS_ASSUME_WINDOW_VISIBILITY");
 }

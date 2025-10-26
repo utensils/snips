@@ -391,6 +391,7 @@ pub fn get_or_create_search_window<R: Runtime>(
 
     let _ = window.set_always_on_top(true);
     record_expected_on_top(SEARCH_WINDOW_LABEL, true);
+    record_visibility_state(SEARCH_WINDOW_LABEL, false);
 
     Ok(window)
 }
@@ -730,7 +731,15 @@ pub fn hide_quick_add_window<R: Runtime>(app: &AppHandle<R>) -> Result<(), AppEr
 /// Toggles the search window visibility
 pub fn toggle_search_window<R: Runtime>(app: &AppHandle<R>) -> Result<(), AppError> {
     let window = get_or_create_search_window(app)?;
-    if window.is_visible().unwrap_or(false) {
+    let actual_visible = window.is_visible().unwrap_or(false);
+    let expected_visible = get_visibility_state(window.label()).unwrap_or(actual_visible);
+    let is_effectively_visible = if actual_visible && !expected_visible {
+        false
+    } else {
+        actual_visible
+    };
+
+    if is_effectively_visible {
         hide_window(&window)?;
     } else {
         center_window(&window)?;
