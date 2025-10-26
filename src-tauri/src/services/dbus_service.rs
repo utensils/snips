@@ -142,6 +142,16 @@ impl SnipsDBusInterface {
             }
         }
     }
+
+    /// Fetch window diagnostics as JSON and return to callers.
+    async fn window_diagnostics(&self) -> zbus::fdo::Result<String> {
+        eprintln!("[DEBUG] [dbus_service] window_diagnostics method called via D-Bus");
+
+        let diagnostics = crate::services::window::collect_window_diagnostics(&self.app);
+        serde_json::to_string(&diagnostics).map_err(|err| {
+            zbus::fdo::Error::Failed(format!("Failed to serialize window diagnostics: {}", err))
+        })
+    }
 }
 
 /// Initialize the D-Bus service
@@ -186,7 +196,7 @@ pub async fn init_dbus_service(app: AppHandle) {
             eprintln!("[INFO] [dbus_service] Available at: io.utensils.snips");
             eprintln!("[INFO] [dbus_service] Object path: /io/utensils/snips");
             eprintln!(
-                "[INFO] [dbus_service] Methods: ShowQuickAdd, ShowSearch, ToggleSearch, ShowManagement, ReloadTheme"
+                "[INFO] [dbus_service] Methods: ShowQuickAdd, ShowSearch, ToggleSearch, ShowManagement, ReloadTheme, window_diagnostics"
             );
 
             // Keep the connection alive indefinitely in a background task
