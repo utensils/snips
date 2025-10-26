@@ -2,7 +2,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { type CSSProperties, type ReactElement, useCallback, useEffect, useRef } from 'react';
 import { List, type ListImperativeAPI } from 'react-window';
 
-import { WindowScaffold } from '@/components/adwaita';
+import { CheckSymbolic, CloseSymbolic, WindowScaffold } from '@/components/adwaita';
 import { ContentArea, Surface, Toolbar, ToolbarIconButton } from '@/components/ui';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -78,20 +78,11 @@ function SearchResultItem({
       <div className="flex items-start gap-3">
         <div className="mt-0.5 flex h-5 w-5 items-center justify-center">
           {isSelected ? (
-            <svg
-              className="h-5 w-5 text-[hsl(var(--accent))]"
-              fill="currentColor"
-              viewBox="0 0 20 20"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <path
-                fillRule="evenodd"
-                d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                clipRule="evenodd"
-              />
-            </svg>
+            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[hsl(var(--color-accent-primary))] text-[hsl(var(--color-accent-foreground))]">
+              <CheckSymbolic size={11} />
+            </span>
           ) : (
-            <div className="h-5 w-5 rounded-full border-2 border-[hsl(var(--outline-soft))]" />
+            <span className="h-5 w-5 rounded-full border-2 border-[hsl(var(--outline-soft))]" />
           )}
         </div>
         <div className="flex-1 min-w-0">
@@ -359,7 +350,7 @@ export function SearchOverlay(): ReactElement {
           />
         </div>
         <ToolbarIconButton aria-label="Close search" onClick={handleClose}>
-          <span className="text-sm font-semibold">Esc</span>
+          <CloseSymbolic size={14} />
         </ToolbarIconButton>
       </Toolbar>
 

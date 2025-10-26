@@ -3,7 +3,7 @@ import { type UnlistenFn } from '@tauri-apps/api/event';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { type FormEvent, type ReactElement, useCallback, useEffect, useState } from 'react';
 
-import { WindowScaffold } from '@/components/adwaita';
+import { CloseSymbolic, WindowScaffold } from '@/components/adwaita';
 import { Surface, Toolbar, ToolbarIconButton } from '@/components/ui';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -440,7 +440,7 @@ export function QuickAddDialog({
             </span>
           ) : null}
           <ToolbarIconButton aria-label="Close quick add" onClick={handleCancel}>
-            <span className="text-lg leading-none">&times;</span>
+            <CloseSymbolic size={14} />
           </ToolbarIconButton>
         </div>
       </Toolbar>

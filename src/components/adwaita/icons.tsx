@@ -66,3 +66,12 @@ export function ChevronLeftSymbolic(props: IconProps): ReactElement {
     </IconBase>
   );
 }
+
+export function CloseSymbolic(props: IconProps): ReactElement {
+  return (
+    <IconBase {...props}>
+      <path d="M4.5 4.5l7 7" />
+      <path d="M11.5 4.5l-7 7" />
+    </IconBase>
+  );
+}
