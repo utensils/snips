@@ -67,5 +67,5 @@ pub async fn current_window_manager_label() -> Result<String, String> {
 /// Retrieves the latest captured text for the quick-add window, if available.
 #[tauri::command]
 pub async fn get_latest_quick_add_capture() -> Result<Option<String>, String> {
-    Ok(crate::services::window::take_quick_add_capture())
+    Ok(crate::services::window::latest_quick_add_capture())
 }

@@ -96,11 +96,11 @@ pub fn record_quick_add_capture(text: String) {
     }
 }
 
-pub fn take_quick_add_capture() -> Option<String> {
+pub fn latest_quick_add_capture() -> Option<String> {
     quick_add_capture_handle()
-        .write()
+        .read()
         .ok()
-        .and_then(|mut guard| guard.take())
+        .and_then(|guard| guard.clone())
 }
 
 fn clear_quick_add_capture() {
@@ -1190,10 +1190,11 @@ mod tests {
     #[test]
     fn test_quick_add_capture_round_trip() {
         record_quick_add_capture("example".to_string());
-        assert_eq!(take_quick_add_capture(), Some("example".to_string()));
-        assert_eq!(take_quick_add_capture(), None);
+        assert_eq!(latest_quick_add_capture(), Some("example".to_string()));
         clear_quick_add_capture();
-        assert_eq!(take_quick_add_capture(), None);
+        assert_eq!(latest_quick_add_capture(), None);
+        clear_quick_add_capture();
+        assert_eq!(latest_quick_add_capture(), None);
     }
 
     /// Integration test notes (requires running app):
