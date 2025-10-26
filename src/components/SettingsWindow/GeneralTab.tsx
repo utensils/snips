@@ -2,7 +2,12 @@ import { invoke } from '@tauri-apps/api/core';
 import { platform } from '@tauri-apps/plugin-os';
 import { type ReactElement, type ReactNode, useEffect, useState } from 'react';
 
-import { PreferenceCard, SegmentedControl, type SegmentedOption } from '@/components/ui';
+import {
+  PreferenceCard,
+  SegmentedControl,
+  ThemePreview,
+  type SegmentedOption,
+} from '@/components/ui';
 import { Button } from '@/components/ui/Button';
 import { Checkbox } from '@/components/ui/Checkbox';
 import { Spinner } from '@/components/ui/Spinner';
@@ -56,6 +61,12 @@ export function GeneralTab(): ReactElement {
   const [currentPlatform, setCurrentPlatform] = useState<string>('');
   const [copySuccess, setCopySuccess] = useState(false);
   const [currentWindowManager, setCurrentWindowManager] = useState<string>('');
+  const [systemPrefersDark, setSystemPrefersDark] = useState<boolean>(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+      return false;
+    }
+    return window.matchMedia('(prefers-color-scheme: dark)').matches;
+  });
 
   const resolvePlatformKey = (platformName: string): keyof AppSettings['window_chrome'] => {
     switch (platformName) {
@@ -75,6 +86,23 @@ export function GeneralTab(): ReactElement {
     void loadWindowManager();
   }, []);
 
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+      return;
+    }
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    const handleChange = (event: MediaQueryListEvent): void => {
+      setSystemPrefersDark(event.matches);
+    };
+
+    if (mediaQuery.addEventListener) {
+      mediaQuery.addEventListener('change', handleChange);
+      return () => mediaQuery.removeEventListener('change', handleChange);
+    }
+
+    mediaQuery.addListener(handleChange);
+    return () => mediaQuery.removeListener(handleChange);
+  }, []);
   const loadSettings = async (): Promise<void> => {
     try {
       setIsLoading(true);
@@ -261,6 +289,22 @@ export function GeneralTab(): ReactElement {
     : undefined;
   const effectiveQuickWindowFloating =
     currentWindowManagerOverride ?? quickWindowPreferences?.float_on_tiling ?? true;
+  const effectiveTheme: Theme =
+    settings.theme === 'system' ? (systemPrefersDark ? 'dark' : 'light') : settings.theme;
+
+  const themeStatusText =
+    settings.theme === 'system'
+      ? `Following system preference (${systemPrefersDark ? 'Dark' : 'Light'})`
+      : settings.theme === 'dark'
+        ? 'Dark theme active'
+        : 'Light theme active';
+
+  const getPreviewBadge = (variant: 'light' | 'dark'): string | undefined => {
+    if (variant !== effectiveTheme) {
+      return undefined;
+    }
+    return settings.theme === 'system' ? 'System' : 'Active';
+  };
 
   return (
     <div className="space-y-6 text-[color:hsl(var(--text-primary))]">
@@ -290,6 +334,21 @@ export function GeneralTab(): ReactElement {
             onChange={(value) => handleThemeChange(value as Theme)}
             ariaLabel="Theme preference"
           />
+          <div className="grid gap-3 md:grid-cols-2">
+            <ThemePreview
+              variant="light"
+              isActive={effectiveTheme === 'light'}
+              badge={getPreviewBadge('light')}
+            />
+            <ThemePreview
+              variant="dark"
+              isActive={effectiveTheme === 'dark'}
+              badge={getPreviewBadge('dark')}
+            />
+          </div>
+          <p className="typography-caption text-[color:hsl(var(--text-secondary))]">
+            {themeStatusText}
+          </p>
         </div>
       </PreferenceCard>
 

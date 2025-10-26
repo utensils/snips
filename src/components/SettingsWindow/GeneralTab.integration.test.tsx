@@ -1,6 +1,6 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { getSettings, updateSettings } from '@/lib/api';
 import type { AppSettings } from '@/types/settings';
@@ -15,6 +15,18 @@ vi.mock('@/lib/api', () => ({
 
 const platformMock = vi.hoisted(() => vi.fn(() => 'macos'));
 const invokeMock = vi.hoisted(() => vi.fn());
+const createMatchMedia = (matches: boolean): MediaQueryList => ({
+  matches,
+  media: '(prefers-color-scheme: dark)',
+  onchange: null,
+  addEventListener: vi.fn(),
+  removeEventListener: vi.fn(),
+  addListener: vi.fn(),
+  removeListener: vi.fn(),
+  dispatchEvent: vi.fn(() => false),
+});
+const matchMediaMock = vi.hoisted(() => vi.fn(() => createMatchMedia(false)));
+let systemPrefersDark = false;
 
 // Mock Tauri platform API
 vi.mock('@tauri-apps/plugin-os', () => ({
@@ -30,6 +42,13 @@ vi.mock('@tauri-apps/api/event', () => ({
   listen: vi.fn(() => Promise.resolve(() => {})),
   emit: vi.fn(() => Promise.resolve()),
 }));
+
+beforeAll(() => {
+  Object.defineProperty(window, 'matchMedia', {
+    writable: true,
+    value: matchMediaMock,
+  });
+});
 
 describe('GeneralTab - Theme Selection Integration', () => {
   const mockSettings: AppSettings = {
@@ -67,6 +86,8 @@ describe('GeneralTab - Theme Selection Integration', () => {
     vi.mocked(getSettings).mockResolvedValue(mockSettings);
     vi.mocked(updateSettings).mockResolvedValue(undefined);
     platformMock.mockReturnValue('macos');
+    systemPrefersDark = false;
+    matchMediaMock.mockImplementation(() => createMatchMedia(systemPrefersDark));
     invokeMock.mockImplementation((cmd: string) => {
       if (cmd === 'current_window_manager_label') {
         return Promise.resolve('other');
@@ -84,9 +105,9 @@ describe('GeneralTab - Theme Selection Integration', () => {
     });
 
     // Verify theme options are displayed
-    expect(screen.getByText('Light')).toBeInTheDocument();
-    expect(screen.getByText('Dark')).toBeInTheDocument();
-    expect(screen.getByText('System')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Light' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Dark' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'System' })).toBeInTheDocument();
   });
 
   it('should change theme from system to dark', async () => {
@@ -218,6 +239,24 @@ describe('GeneralTab - Theme Selection Integration', () => {
     expect(darkButton).toHaveAttribute('aria-pressed', 'true');
   });
 
+  it('shows system theme badge when following dark system preference', async () => {
+    systemPrefersDark = true;
+    matchMediaMock.mockImplementation(() => createMatchMedia(systemPrefersDark));
+    vi.mocked(getSettings).mockResolvedValue({
+      ...mockSettings,
+      theme: 'system',
+    });
+
+    render(<GeneralTab />);
+
+    await waitFor(() => {
+      expect(getSettings).toHaveBeenCalled();
+    });
+
+    expect(screen.getByText(/Following system preference \(Dark\)/i)).toBeInTheDocument();
+    expect(screen.getByTestId('theme-preview-badge-dark')).toHaveTextContent('System');
+  });
+
   it('should start with light theme if loaded from settings', async () => {
     vi.mocked(getSettings).mockResolvedValue({
       ...mockSettings,
@@ -249,16 +288,14 @@ describe('GeneralTab - Theme Selection Integration', () => {
       expect(getSettings).toHaveBeenCalled();
     });
 
-    const darkButton = screen.getByText('Dark').closest('button');
-
     // Click dark button
-    await user.click(darkButton!);
+    await user.click(screen.getByRole('button', { name: 'Dark' }));
 
     // Buttons should be disabled immediately
     await waitFor(() => {
-      expect(darkButton).toBeDisabled();
-      expect(screen.getByText('Light').closest('button')).toBeDisabled();
-      expect(screen.getByText('System').closest('button')).toBeDisabled();
+      expect(screen.getByRole('button', { name: 'Dark' })).toBeDisabled();
+      expect(screen.getByRole('button', { name: 'Light' })).toBeDisabled();
+      expect(screen.getByRole('button', { name: 'System' })).toBeDisabled();
     });
   });
 

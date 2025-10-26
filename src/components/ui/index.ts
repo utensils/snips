@@ -51,3 +51,6 @@ export type { SegmentedControlProps, SegmentedOption } from './SegmentedControl'
 
 export { ToolbarIconButton } from './ToolbarIconButton';
 export type { ToolbarIconButtonProps } from './ToolbarIconButton';
+
+export { ThemePreview } from './ThemePreview';
+export type { ThemePreviewProps, ThemePreviewVariant } from './ThemePreview';
