@@ -197,6 +197,10 @@ async fn delete_snippet(id: i64) -> Result<(), String>
 | GNOME on X11            | Search overlay behaviour, clipboard capture warnings, legacy shortcut handling | James Brink            | Before each tagged release    |
 | Omarchy reference image | Theme hook integration, managed wallpaper sync, auto-updater sanity            | Ops / Release engineer | Prior to distro image refresh |
 
+#### Automated Wayland Suite
+
+- `scripts/ci/wayland-tests.sh` reproduces the headless Wayland reliability pipeline locally (via Docker) and is invoked by CI. Run it without arguments to launch the containerised environment, or set `INSIDE_WAYLAND_CI=1` to reuse an already provisioned runner.
+
 #### Search
 
 ```rust

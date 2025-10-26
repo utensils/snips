@@ -187,41 +187,11 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-wayland-cargo-build-
 
-      - name: Install Wayland test dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev \
-            build-essential \
-            curl \
-            wget \
-            file \
-            libxdo-dev \
-            libssl-dev \
-            libayatana-appindicator3-dev \
-            librsvg2-dev \
-            weston \
-            glib2.0-bin
-
       - name: Run headless Wayland unit tests
-        run: |
-          dbus-run-session -- bash <<'EOS'
-          set -euo pipefail
-
-          export XDG_RUNTIME_DIR="$(mktemp -d)"
-          chmod 700 "${XDG_RUNTIME_DIR}"
-          export WAYLAND_DISPLAY="wayland-ci"
-
-          weston --backend=headless --socket="${WAYLAND_DISPLAY}" --idle-time=0 > wayland-weston.log 2>&1 &
-          WESTON_PID=$!
-          trap 'kill ${WESTON_PID} 2>/dev/null || true; rm -rf "${XDG_RUNTIME_DIR}"' EXIT
-
-          sleep 2
-
-          export SNIPS_METRICS=1
-
-          cargo test --manifest-path=src-tauri/Cargo.toml --test window_focus_e2e -- --nocapture
-          cargo test --manifest-path=src-tauri/Cargo.toml --test dbus_smoke -- --nocapture
-          EOS
+        env:
+          INSIDE_WAYLAND_CI: "1"
+          WAYLAND_WESTON_LOG: wayland-weston.log
+        run: scripts/ci/wayland-tests.sh
 
       - name: Upload Wayland logs
         if: always()
