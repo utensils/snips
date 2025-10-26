@@ -75,17 +75,19 @@ function normalizeHsl(value: string): string | null {
   }
 
   if (trimmed.startsWith('rgb')) {
-    const match = trimmed
+    const components = trimmed
       .replace(/rgba?\(/, '')
       .replace(')', '')
       .split(',')
-      .map((token) => token.trim())
-      .slice(0, 3)
-      .map((token) => Number.parseFloat(token));
-    if (match.some((component) => Number.isNaN(component))) {
+      .map((token) => Number.parseFloat(token.trim()))
+      .filter((component) => Number.isFinite(component));
+
+    if (components.length < 3) {
       return null;
     }
-    return rgbToHsl(match[0], match[1], match[2]);
+
+    const [r, g, b] = components.slice(0, 3) as [number, number, number];
+    return rgbToHsl(r, g, b);
   }
 
   if (trimmed.startsWith('hsl')) {
@@ -98,6 +100,9 @@ function normalizeHsl(value: string): string | null {
       return null;
     }
     const [h, s, l] = parts;
+    if (!h || !s || !l) {
+      return null;
+    }
     return `${h.replace('deg', '').trim()} ${s.trim()} ${l.trim()}`;
   }
 
@@ -117,6 +122,9 @@ export function applyOmarchyPalette(palette: ThemePalette, wallpaperSrc?: string
     }
 
     const value = palette.colors[colorKey];
+    if (!value) {
+      return;
+    }
     const hsl = normalizeHsl(value);
     if (hsl) {
       root.style.setProperty(cssVar, hsl);
@@ -129,7 +137,10 @@ export function applyOmarchyPalette(palette: ThemePalette, wallpaperSrc?: string
     delete root.dataset.omarchyIconTheme;
   }
 
-  const iconAccent = palette.colors.selected_text ?? palette.colors.accent;
+  const iconAccentCandidates = [palette.colors.selected_text, palette.colors.accent];
+  const iconAccent = iconAccentCandidates.find((candidate): candidate is string =>
+    Boolean(candidate)
+  );
   const iconAccentHsl = iconAccent ? normalizeHsl(iconAccent) : null;
   if (iconAccentHsl) {
     root.style.setProperty('--icon-theme', iconAccentHsl);

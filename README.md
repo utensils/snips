@@ -70,8 +70,10 @@ sudo dnf install webkit2gtk4.1-devel
 - Uses PRIMARY selection for quick text capture (reads highlighted text directly)
 - Falls back to CLIPBOARD if PRIMARY is empty
 - Requires running display server (X11 or Wayland)
-- Search overlay uses native window chrome on Linux but still floats and stays on top for quick access
-- Quick Add now opens with standard decorations, appears in the task list, and can be tiled or resized like any other window
+- Search overlay launches with native chrome on Linux but still floats by default for quick access
+- Quick Add uses native decorations, participates in tiling WMs, and honors the per-platform “window chrome” preference exposed in Settings
+- Focus recovery now retries with exponential backoff on Wayland and surfaces warnings if the compositor denies focus
+- `tauri invoke window_diagnostics` provides a structured snapshot (visibility, focus, size, decoration state) for support scripts
 
 **Hyprland/Wayland Integration:**
 
@@ -95,7 +97,7 @@ sudo dnf install webkit2gtk4.1-devel
 
 - Available D-Bus methods: `ShowQuickAdd`, `ShowSearch`, `ToggleSearch`, `ShowManagement`, `ReloadTheme`
 - **Note**: `ToggleSearch` is recommended for the search keybind as it matches the macOS/X11 toggle behavior
-- Quick Add uses native chrome on Linux; add or remove window rules above depending on whether you want it tiled or floating
+- Quick Add uses native chrome on Linux; add or remove window rules above depending on whether you want it tiled or floating. Snips auto-detects tiling WMs (Hyprland/Sway/River) and defaults to floating-only behavior unless you opt-in to tiling.
 - To sync Omarchy's theme engine with Snips, install the provided hook:
 
   ```bash
@@ -103,9 +105,9 @@ sudo dnf install webkit2gtk4.1-devel
   ln -sf /path/to/snips/scripts/omarchy-theme-set-snips ~/.config/omarchy/hooks/theme-set
   ```
 
-  The hook triggers the `ReloadTheme` D-Bus method so Snips refreshes its palette, icons, and wallpaper whenever Omarchy changes themes.
+  The hook triggers the `ReloadTheme` D-Bus method so Snips refreshes its palette, icons, wallpaper, and icon accents whenever Omarchy changes themes.
 
-- Command-line helpers (Linux only): `snips-theme list` enumerates Omarchy themes, and `snips-theme import <name>` generates a Snips CSS fragment without switching system themes.
+- Command-line helpers (Linux only): `snips-theme list` enumerates Omarchy themes, and `snips-theme import <name>` generates a Snips CSS fragment without switching system themes or requiring Omarchy.
 
 **⚠️ Linux Limitations (Active Development):**
 
@@ -113,9 +115,10 @@ sudo dnf install webkit2gtk4.1-devel
   - X11: `Ctrl+Shift+S` and `Ctrl+Shift+A` work natively via Tauri's global shortcut plugin
   - Wayland: Must use D-Bus method calls bound to window manager keybinds (see Hyprland integration above)
   - All platforms use the same internal shortcut constants (`CmdOrCtrl+Shift+S/A`) for consistency
-- **Window Focus**: Generally reliable with the new on-demand creation, but some compositors may still ignore the first focus request.
+- **Window Focus**: Generally reliable with the new on-demand creation and retry loop, but some compositors may still ignore the first focus request—Snips will emit a warning toast when this happens.
 - **Tray Badge**: Selection count badge not supported on most Linux system trays.
-- **Tested**: Hyprland on Wayland. Other DEs/compositors may have additional issues.
+- **Theme Directories**: If Omarchy theme folders are missing, Snips falls back to the bundled Catppuccin palette; CLI import can regenerate fragments manually.
+- **Tested**: Hyprland (Wayland focus), GNOME Shell (Wayland), KDE Plasma 6 (Wayland), X11 (GNOME). Other DEs/compositors may have additional issues—diagnostics are logged to help triage.
 
 ### Installation
 

@@ -44,6 +44,11 @@ describe('GeneralTab - Theme Selection Integration', () => {
       enable_analytics: true,
       track_usage: true,
     },
+    window_chrome: {
+      macos: 'frameless_shadow',
+      linux: 'native',
+      windows: 'native',
+    },
   };
 
   beforeEach(() => {
