@@ -274,15 +274,16 @@ export function QuickAddDialog({ onSuccess, onError }: QuickAddDialogProps): Rea
         </h1>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Selected text preview (read-only) */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Selected Text
-            </label>
-            <div className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-sm text-gray-700 dark:text-gray-300 max-h-32 overflow-y-auto">
-              {selectedText}
-            </div>
-          </div>
+          {/* Selected text (editable) */}
+          <Textarea
+            label="Content"
+            value={selectedText}
+            onChange={(e) => setSelectedText(e.target.value)}
+            placeholder="Captured text will appear here - you can edit it before saving"
+            fullWidth
+            rows={6}
+            helperText="This text was automatically captured. You can modify it before creating the snippet."
+          />
 
           {/* Name input (required) */}
           <Input

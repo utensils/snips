@@ -306,6 +306,19 @@ export function SearchOverlay(): ReactElement {
     inputRef.current?.focus();
   }, []);
 
+  // Global Escape key handler (works even when no results)
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent): void => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        handleClose();
+      }
+    };
+
+    window.addEventListener('keydown', handleEscape);
+    return () => window.removeEventListener('keydown', handleEscape);
+  }, [handleClose]);
+
   const hasResults = searchResults.length > 0;
   const showEmpty = !isSearching && debouncedQuery.trim() && !hasResults;
   const showResults = !isSearching && hasResults;

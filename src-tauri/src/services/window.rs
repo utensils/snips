@@ -8,10 +8,33 @@ pub const MANAGEMENT_WINDOW_LABEL: &str = "management";
 pub const QUICK_ADD_WINDOW_LABEL: &str = "quick-add";
 pub const SETTINGS_WINDOW_LABEL: &str = "settings";
 
-/// Gets the search window handle
-pub fn get_search_window(app: &AppHandle) -> Result<WebviewWindow, AppError> {
-    app.get_webview_window(SEARCH_WINDOW_LABEL)
-        .ok_or_else(|| AppError::NotFound("Search window not found".into()))
+/// Gets the search window handle, creating it if it doesn't exist
+/// WAYLAND FIX: Create on-demand instead of pre-created with visible:false
+pub fn get_or_create_search_window(app: &AppHandle) -> Result<WebviewWindow, AppError> {
+    if let Some(window) = app.get_webview_window(SEARCH_WINDOW_LABEL) {
+        return Ok(window);
+    }
+
+    eprintln!("[DEBUG] [window.rs] Creating search window on-demand (Wayland compatibility)");
+
+    // Create search window (Wayland-compatible: no visible:false)
+    let window = tauri::WebviewWindowBuilder::new(
+        app,
+        SEARCH_WINDOW_LABEL,
+        tauri::WebviewUrl::App("index.html".into()),
+    )
+    .title("Snips")
+    .inner_size(600.0, 400.0)
+    .center()
+    .resizable(false)
+    .decorations(false)
+    .transparent(true)
+    .always_on_top(true)
+    .skip_taskbar(true)
+    .build()
+    .map_err(|e| AppError::TauriError(format!("Failed to create search window: {}", e)))?;
+
+    Ok(window)
 }
 
 /// Gets the management window handle, creating it if it doesn't exist
@@ -20,7 +43,9 @@ pub fn get_or_create_management_window(app: &AppHandle) -> Result<WebviewWindow,
         return Ok(window);
     }
 
-    // Create management window
+    eprintln!("[DEBUG] [window.rs] Creating management window on-demand (Wayland compatibility)");
+
+    // Create management window (Wayland-compatible: no visible:false)
     let window = tauri::WebviewWindowBuilder::new(
         app,
         MANAGEMENT_WINDOW_LABEL,
@@ -30,7 +55,6 @@ pub fn get_or_create_management_window(app: &AppHandle) -> Result<WebviewWindow,
     .inner_size(1000.0, 700.0)
     .center()
     .resizable(true)
-    .visible(false)
     .skip_taskbar(false)
     .decorations(true)
     .build()
@@ -39,11 +63,32 @@ pub fn get_or_create_management_window(app: &AppHandle) -> Result<WebviewWindow,
     Ok(window)
 }
 
-/// Gets the quick add window handle
-/// Window is pre-created in tauri.conf.json for better stability
-pub fn get_quick_add_window(app: &AppHandle) -> Result<WebviewWindow, AppError> {
-    app.get_webview_window(QUICK_ADD_WINDOW_LABEL)
-        .ok_or_else(|| AppError::NotFound("Quick add window not found".into()))
+/// Gets the quick add window handle, creating it if it doesn't exist
+/// WAYLAND FIX: Create on-demand instead of pre-created with visible:false
+pub fn get_or_create_quick_add_window(app: &AppHandle) -> Result<WebviewWindow, AppError> {
+    if let Some(window) = app.get_webview_window(QUICK_ADD_WINDOW_LABEL) {
+        return Ok(window);
+    }
+
+    eprintln!("[DEBUG] [window.rs] Creating Quick Add window on-demand (Wayland compatibility)");
+
+    // Create Quick Add window (Wayland-compatible: no visible:false)
+    let window = tauri::WebviewWindowBuilder::new(
+        app,
+        QUICK_ADD_WINDOW_LABEL,
+        tauri::WebviewUrl::App("index.html".into()),
+    )
+    .title("Quick Add Snippet")
+    .inner_size(650.0, 700.0)
+    .center()
+    .resizable(false)
+    .always_on_top(true)
+    .skip_taskbar(true)
+    .decorations(true)
+    .build()
+    .map_err(|e| AppError::TauriError(format!("Failed to create Quick Add window: {}", e)))?;
+
+    Ok(window)
 }
 
 /// Gets the settings window handle, creating it if it doesn't exist
@@ -52,7 +97,9 @@ pub fn get_or_create_settings_window(app: &AppHandle) -> Result<WebviewWindow, A
         return Ok(window);
     }
 
-    // Create settings window
+    eprintln!("[DEBUG] [window.rs] Creating settings window on-demand (Wayland compatibility)");
+
+    // Create settings window (Wayland-compatible: no visible:false)
     let window = tauri::WebviewWindowBuilder::new(
         app,
         SETTINGS_WINDOW_LABEL,
@@ -62,7 +109,6 @@ pub fn get_or_create_settings_window(app: &AppHandle) -> Result<WebviewWindow, A
     .inner_size(1000.0, 700.0)
     .center()
     .resizable(true)
-    .visible(false)
     .skip_taskbar(false)
     .decorations(true)
     .build()
@@ -80,14 +126,7 @@ pub fn show_window(window: &WebviewWindow) -> Result<(), AppError> {
         window.is_focused().unwrap_or(false)
     );
 
-    // Platform-specific workarounds for Wayland/Hyprland
-    #[cfg(target_os = "linux")]
-    {
-        // Workaround 1: Try hide/show pattern (works on some X11 window managers)
-        let _ = window.hide();
-        std::thread::sleep(std::time::Duration::from_millis(10));
-    }
-
+    // WAYLAND FIX: Don't use hide/show workaround - it destroys windows on Wayland
     window
         .show()
         .map_err(|e| AppError::TauriError(e.to_string()))?;
@@ -199,7 +238,7 @@ pub fn resize_window(window: &WebviewWindow, width: u32, height: u32) -> Result<
 
 /// Shows and centers the search window
 pub fn show_search_window(app: &AppHandle) -> Result<(), AppError> {
-    let window = get_search_window(app)?;
+    let window = get_or_create_search_window(app)?;
     center_window(&window)?;
     show_window(&window)?;
     Ok(())
@@ -207,14 +246,14 @@ pub fn show_search_window(app: &AppHandle) -> Result<(), AppError> {
 
 /// Hides the search window
 pub fn hide_search_window(app: &AppHandle) -> Result<(), AppError> {
-    let window = get_search_window(app)?;
+    let window = get_or_create_search_window(app)?;
     hide_window(&window)?;
     Ok(())
 }
 
 pub fn hide_quick_add_window(app: &AppHandle) -> Result<(), AppError> {
     eprintln!("[DEBUG] [window.rs] hide_quick_add_window() called");
-    let window = get_quick_add_window(app)?;
+    let window = get_or_create_quick_add_window(app)?;
     eprintln!("[DEBUG] [window.rs] Quick-add window obtained, hiding...");
     hide_window(&window)?;
     eprintln!("[DEBUG] [window.rs] Quick-add window hidden successfully");
@@ -223,7 +262,7 @@ pub fn hide_quick_add_window(app: &AppHandle) -> Result<(), AppError> {
 
 /// Toggles the search window visibility
 pub fn toggle_search_window(app: &AppHandle) -> Result<(), AppError> {
-    let window = get_search_window(app)?;
+    let window = get_or_create_search_window(app)?;
     if window.is_visible().unwrap_or(false) {
         hide_window(&window)?;
     } else {
@@ -261,8 +300,24 @@ pub fn show_quick_add_window(app: &AppHandle) -> Result<(), AppError> {
         }
     );
 
+    // If no text was captured, don't show the window (silent fail)
+    let text = match selected_text {
+        Ok(t) => t,
+        Err(e) => {
+            eprintln!(
+                "[DEBUG] [window.rs] No text selected, not showing window: {}",
+                e
+            );
+            return Ok(()); // Success, but don't show window
+        }
+    };
+
     eprintln!("[DEBUG] [window.rs] Getting quick-add window");
-    let window = get_quick_add_window(app)?;
+
+    // Check if window needs creation (for delay calculation)
+    let was_created = app.get_webview_window(QUICK_ADD_WINDOW_LABEL).is_none();
+
+    let window = get_or_create_quick_add_window(app)?;
     eprintln!("[DEBUG] [window.rs] Window obtained successfully");
 
     eprintln!("[DEBUG] [window.rs] Centering window");
@@ -274,45 +329,28 @@ pub fn show_quick_add_window(app: &AppHandle) -> Result<(), AppError> {
     eprintln!("[DEBUG] [window.rs] Window shown successfully");
 
     // Emit event AFTER showing window to ensure frontend listener is ready
-    // Window is pre-created at startup, so use shorter delay
-    let delay_ms = 200;
+    // Use longer delay if window was just created (React needs to mount)
+    let delay_ms = if was_created {
+        1000 // 1 second for newly created window (React mount + listener setup)
+    } else {
+        200 // 200ms for existing window
+    };
 
-    if let Ok(text) = selected_text {
-        eprintln!(
-            "[DEBUG] [window.rs] Spawning thread to emit selected-text-captured event (delay: {}ms)",
-            delay_ms
-        );
-        let app_clone = app.clone();
-        std::thread::spawn(move || {
-            std::thread::sleep(std::time::Duration::from_millis(delay_ms));
-            eprintln!("[DEBUG] [window.rs] Emitting selected-text-captured event");
-            // Use emit_to to target the specific window
-            if let Err(e) =
-                app_clone.emit_to(QUICK_ADD_WINDOW_LABEL, "selected-text-captured", text)
-            {
-                eprintln!("Failed to emit selected-text-captured event: {}", e);
-            } else {
-                eprintln!("[DEBUG] [window.rs] Event emitted successfully");
-            }
-        });
-    } else if let Err(e) = selected_text {
-        eprintln!(
-            "[DEBUG] [window.rs] Text capture failed, emitting error event: {}",
-            e
-        );
-        // If text capture failed, emit an error event
-        let app_clone = app.clone();
-        let error_msg = e.to_string();
-        std::thread::spawn(move || {
-            std::thread::sleep(std::time::Duration::from_millis(delay_ms));
-            // Use emit_to to target the specific window
-            if let Err(e) =
-                app_clone.emit_to(QUICK_ADD_WINDOW_LABEL, "selected-text-error", error_msg)
-            {
-                eprintln!("Failed to emit selected-text-error event: {}", e);
-            }
-        });
-    }
+    eprintln!(
+        "[DEBUG] [window.rs] Spawning thread to emit selected-text-captured event (delay: {}ms)",
+        delay_ms
+    );
+    let app_clone = app.clone();
+    std::thread::spawn(move || {
+        std::thread::sleep(std::time::Duration::from_millis(delay_ms));
+        eprintln!("[DEBUG] [window.rs] Emitting selected-text-captured event");
+        // Use emit_to to target the specific window
+        if let Err(e) = app_clone.emit_to(QUICK_ADD_WINDOW_LABEL, "selected-text-captured", text) {
+            eprintln!("Failed to emit selected-text-captured event: {}", e);
+        } else {
+            eprintln!("[DEBUG] [window.rs] Event emitted successfully");
+        }
+    });
 
     eprintln!("[DEBUG] [window.rs] show_quick_add_window() completed successfully");
     Ok(())
