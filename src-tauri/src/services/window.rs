@@ -856,6 +856,9 @@ pub fn show_quick_add_window<R: Runtime>(app: &AppHandle<R>) -> Result<(), AppEr
 
     let quick_add_exists = app.get_webview_window(QUICK_ADD_WINDOW_LABEL).is_some();
 
+    // Always clear any stale capture so callers never see an old payload.
+    clear_quick_add_capture();
+
     // IMPORTANT: Capture selected text BEFORE showing window to avoid losing focus
     let selected_text = capture_selected_text_sync();
     eprintln!(
@@ -885,6 +888,8 @@ pub fn show_quick_add_window<R: Runtime>(app: &AppHandle<R>) -> Result<(), AppEr
         return Err(AppError::NotFound("No text selected".to_string()));
     }
 
+    record_quick_add_capture(text.clone());
+
     eprintln!("[DEBUG] [window.rs] Getting quick-add window");
 
     // Check if window needs creation (for delay calculation)
@@ -900,8 +905,6 @@ pub fn show_quick_add_window<R: Runtime>(app: &AppHandle<R>) -> Result<(), AppEr
     eprintln!("[DEBUG] [window.rs] Showing window");
     show_window(&window)?;
     eprintln!("[DEBUG] [window.rs] Window shown successfully");
-
-    record_quick_add_capture(text.clone());
 
     // Emit event AFTER showing window to ensure frontend listener is ready
     // Use longer delay if window was just created (React needs to mount)
