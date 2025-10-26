@@ -1,4 +1,5 @@
 use crate::utils::error::AppError;
+use serde::Serialize;
 use tauri::AppHandle;
 
 /// Get the currently selected text from the active application.
@@ -235,6 +236,76 @@ async fn get_clipboard_content() -> Result<String, String> {
             "Clipboard operations only supported on macOS and Linux".to_string(),
         )
         .into())
+    }
+}
+
+#[derive(Debug, Serialize)]
+pub struct ClipboardProbeResult {
+    pub primary_supported: bool,
+    pub clipboard_supported: bool,
+    pub primary_error: Option<String>,
+    pub clipboard_error: Option<String>,
+}
+
+#[tauri::command]
+pub async fn probe_clipboard_support() -> Result<ClipboardProbeResult, String> {
+    #[cfg(target_os = "linux")]
+    {
+        use arboard::{Clipboard, GetExtLinux, LinuxClipboardKind};
+
+        let mut result = ClipboardProbeResult {
+            primary_supported: false,
+            clipboard_supported: false,
+            primary_error: None,
+            clipboard_error: None,
+        };
+
+        match Clipboard::new() {
+            Ok(mut clipboard) => {
+                match clipboard
+                    .get()
+                    .clipboard(LinuxClipboardKind::Primary)
+                    .text()
+                {
+                    Ok(_) => {
+                        result.primary_supported = true;
+                    }
+                    Err(err) => {
+                        result.primary_error = Some(err.to_string());
+                    }
+                }
+
+                match clipboard
+                    .get()
+                    .clipboard(LinuxClipboardKind::Clipboard)
+                    .text()
+                {
+                    Ok(_) => {
+                        result.clipboard_supported = true;
+                    }
+                    Err(err) => {
+                        result.clipboard_error = Some(err.to_string());
+                    }
+                }
+            }
+            Err(err) => {
+                let message = err.to_string();
+                result.primary_error = Some(message.clone());
+                result.clipboard_error = Some(message);
+            }
+        }
+
+        Ok(result)
+    }
+
+    #[cfg(not(target_os = "linux"))]
+    {
+        Ok(ClipboardProbeResult {
+            primary_supported: false,
+            clipboard_supported: true,
+            primary_error: None,
+            clipboard_error: None,
+        })
     }
 }
 

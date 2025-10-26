@@ -27,13 +27,18 @@ const errorLog = (...messages: unknown[]): void => {
 interface QuickAddDialogProps {
   onSuccess?: () => void;
   onError?: (error: string) => void;
+  clipboardWarning?: string | null;
 }
 
 /**
  * QuickAddDialog component for quickly adding snippets from selected text.
  * Captures selected text when opened, allows user to name and tag the snippet.
  */
-export function QuickAddDialog({ onSuccess, onError }: QuickAddDialogProps): ReactElement {
+export function QuickAddDialog({
+  onSuccess,
+  onError,
+  clipboardWarning,
+}: QuickAddDialogProps): ReactElement {
   const [selectedText, setSelectedText] = useState<string>('');
   const [name, setName] = useState<string>('');
   const [description, setDescription] = useState<string>('');
@@ -306,6 +311,15 @@ export function QuickAddDialog({ onSuccess, onError }: QuickAddDialogProps): Rea
             </Button>
           }
         />
+
+        {clipboardWarning && (
+          <Pane
+            padding="sm"
+            className="bg-yellow-500/10 text-sm text-yellow-800 dark:text-yellow-200 border border-yellow-500/40"
+          >
+            {clipboardWarning}
+          </Pane>
+        )}
 
         <Pane padding="lg" className="space-y-6">
           <form onSubmit={handleSubmit} className="space-y-5">

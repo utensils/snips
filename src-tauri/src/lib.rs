@@ -198,6 +198,7 @@ pub fn run() {
             commands::shortcut_commands::reregister_default_shortcuts,
             commands::clipboard_commands::get_selected_text,
             commands::clipboard_commands::copy_to_clipboard,
+            commands::clipboard_commands::probe_clipboard_support,
             commands::storage_commands::backup_database,
             commands::storage_commands::restore_database,
             commands::storage_commands::get_database_stats,

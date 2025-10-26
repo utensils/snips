@@ -9,6 +9,7 @@ import { SearchOverlay } from '@/components/SearchOverlay';
 import { SettingsWindow } from '@/components/SettingsWindow';
 import { useTheme } from '@/hooks/useTheme';
 import { applyOmarchyPalette } from '@/lib/theme';
+import type { ClipboardProbeResult } from '@/types/clipboard';
 import type { AppSettings, WindowChromePreference } from '@/types/settings';
 import type { ThemePalette } from '@/types/theme';
 
@@ -18,6 +19,7 @@ import type { ThemePalette } from '@/types/theme';
 function App(): ReactElement {
   const [windowLabel, setWindowLabel] = useState<string>('');
   const [isLoading, setIsLoading] = useState(true);
+  const [clipboardWarning, setClipboardWarning] = useState<string | null>(null);
 
   // Initialize theme (system preference detection)
   useTheme();
@@ -67,6 +69,20 @@ function App(): ReactElement {
           } catch (err) {
             if (import.meta.env.DEV) {
               console.error('Failed to load Omarchy theme palette', err);
+            }
+          }
+
+          try {
+            const probe = await invoke<ClipboardProbeResult>('probe_clipboard_support');
+            if (!probe.primary_supported) {
+              const message = probe.primary_error
+                ? `Primary selection is unavailable (${probe.primary_error}). Snips will fall back to the standard clipboard.`
+                : 'Primary selection is unavailable on this compositor. Snips will fall back to the standard clipboard.';
+              setClipboardWarning(message);
+            }
+          } catch (err) {
+            if (import.meta.env.DEV) {
+              console.warn('Clipboard probe failed', err);
             }
           }
 
@@ -133,6 +149,7 @@ function App(): ReactElement {
     case 'quick-add':
       view = (
         <QuickAddDialog
+          clipboardWarning={clipboardWarning}
           onSuccess={() => {
             // Snippet created successfully
           }}
