@@ -47,6 +47,7 @@ pub use storage_commands::{
 
 // Re-export window commands
 pub use window_commands::{
-    hide_search_window, show_management_window, show_quick_add_window, show_search_window,
-    toggle_search_window, update_badge_count,
+    current_window_manager_label, hide_quick_add_window, hide_search_window,
+    show_management_window, show_quick_add_window, show_search_window, show_settings_window,
+    toggle_search_window, update_badge_count, window_diagnostics,
 };

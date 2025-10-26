@@ -57,3 +57,9 @@ pub async fn window_diagnostics(
 ) -> Result<Vec<crate::services::window::WindowDiagnostic>, String> {
     Ok(crate::services::window::collect_window_diagnostics(&app))
 }
+
+/// Returns the detected window manager label (hyprland, sway, river, other)
+#[tauri::command]
+pub async fn current_window_manager_label() -> Result<String, String> {
+    Ok(crate::services::window::current_window_manager_label().to_string())
+}

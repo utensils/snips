@@ -34,7 +34,7 @@ fn window_sequence_reports_expected_visibility() {
     std::env::set_var("SNIPS_ASSUME_WINDOW_VISIBILITY", "1");
     std::env::set_var("SNIPS_METRICS", "1");
     snips_lib::services::window::reset_focus_metrics_for_tests();
-    update_quick_window_preferences(&QuickWindowPreferences::default());
+    update_quick_window_preferences(QuickWindowPreferences::default());
 
     let app = build_mock_app();
     let handle = app.handle();

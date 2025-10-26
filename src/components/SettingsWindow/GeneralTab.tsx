@@ -49,6 +49,7 @@ export function GeneralTab(): ReactElement {
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [currentPlatform, setCurrentPlatform] = useState<string>('');
   const [copySuccess, setCopySuccess] = useState(false);
+  const [currentWindowManager, setCurrentWindowManager] = useState<string>('');
 
   const resolvePlatformKey = (platformName: string): keyof AppSettings['window_chrome'] => {
     switch (platformName) {
@@ -65,6 +66,7 @@ export function GeneralTab(): ReactElement {
   useEffect(() => {
     loadSettings();
     setCurrentPlatform(platform());
+    void loadWindowManager();
   }, []);
 
   const loadSettings = async (): Promise<void> => {
@@ -72,11 +74,29 @@ export function GeneralTab(): ReactElement {
       setIsLoading(true);
       setError(null);
       const data = await getSettings();
-      setSettings(data);
+      setSettings({
+        ...data,
+        quick_window_preferences: {
+          float_on_tiling: data.quick_window_preferences?.float_on_tiling ?? true,
+          per_wm_overrides: data.quick_window_preferences?.per_wm_overrides ?? {},
+        },
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load settings');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const loadWindowManager = async (): Promise<void> => {
+    try {
+      const wmLabel = await invoke<string>('current_window_manager_label');
+      setCurrentWindowManager(wmLabel);
+    } catch (err) {
+      if (import.meta.env.DEV) {
+        console.warn('Failed to detect current window manager', err);
+      }
+      setCurrentWindowManager('other');
     }
   };
 
@@ -142,11 +162,20 @@ export function GeneralTab(): ReactElement {
       setError(null);
       setSaveSuccess(false);
 
+      const perWmOverrides = {
+        ...(settings.quick_window_preferences?.per_wm_overrides ?? {}),
+      };
+
+      if (currentWindowManager) {
+        perWmOverrides[currentWindowManager] = enabled;
+      }
+
       const updatedSettings: AppSettings = {
         ...settings,
         quick_window_preferences: {
           ...settings.quick_window_preferences,
           float_on_tiling: enabled,
+          per_wm_overrides: perWmOverrides,
         },
       };
 
@@ -215,6 +244,12 @@ export function GeneralTab(): ReactElement {
 
   const platformKey = resolvePlatformKey(currentPlatform);
   const currentChrome = settings.window_chrome?.[platformKey] ?? 'native';
+  const quickWindowPreferences = settings.quick_window_preferences;
+  const currentWindowManagerOverride = currentWindowManager
+    ? quickWindowPreferences?.per_wm_overrides?.[currentWindowManager]
+    : undefined;
+  const effectiveQuickWindowFloating =
+    currentWindowManagerOverride ?? quickWindowPreferences?.float_on_tiling ?? true;
 
   return (
     <div className="space-y-6">
@@ -316,7 +351,7 @@ export function GeneralTab(): ReactElement {
               >
                 <Checkbox
                   id="keep-quick-windows-floating"
-                  checked={settings.quick_window_preferences?.float_on_tiling ?? true}
+                  checked={effectiveQuickWindowFloating}
                   onChange={(event) => handleQuickWindowFloatingChange(event.target.checked)}
                   disabled={isSaving}
                   aria-describedby="keep-quick-windows-floating-description"
@@ -328,6 +363,9 @@ export function GeneralTab(): ReactElement {
                     className="text-xs text-muted-foreground"
                   >
                     Search and Quick Add stay above tiling window managers (Hyprland, Sway, River).
+                    {currentWindowManager && currentWindowManager !== 'other' && (
+                      <span> This preference currently applies to {currentWindowManager}.</span>
+                    )}{' '}
                     Disable if you prefer them to tile with the rest of your workspace.
                   </p>
                 </div>

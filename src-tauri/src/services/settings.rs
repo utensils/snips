@@ -44,12 +44,16 @@ impl SettingsService {
     }
 
     /// Update settings in database and cache
-    pub async fn update_settings(&self, settings: AppSettings) -> Result<(), AppError> {
+    pub async fn update_settings(
+        &self,
+        mut settings: AppSettings,
+    ) -> Result<AppSettings, AppError> {
         // Validate settings
         self.validate_settings(&settings)?;
 
         window::update_window_chrome_settings(&settings.window_chrome);
-        window::update_quick_window_preferences(&settings.quick_window_preferences);
+        settings.quick_window_preferences =
+            window::update_quick_window_preferences(settings.quick_window_preferences.clone());
 
         // Serialize to JSON
         let settings_json = serde_json::to_string(&settings)?;
@@ -75,10 +79,10 @@ impl SettingsService {
         // Update cache
         {
             let mut cache = self.cache.write().await;
-            *cache = Some(settings);
+            *cache = Some(settings.clone());
         }
 
-        Ok(())
+        Ok(settings)
     }
 
     /// Update a specific setting by key
@@ -140,14 +144,19 @@ impl SettingsService {
                 let settings: AppSettings =
                     serde_json::from_str(&json).map_err(AppError::Serialization)?;
                 window::update_window_chrome_settings(&settings.window_chrome);
-                window::update_quick_window_preferences(&settings.quick_window_preferences);
+                let mut settings = settings;
+                settings.quick_window_preferences = window::update_quick_window_preferences(
+                    settings.quick_window_preferences.clone(),
+                );
                 Ok(settings)
             }
             None => {
                 // Return default settings and save them
-                let defaults = AppSettings::default();
+                let mut defaults = AppSettings::default();
                 window::update_window_chrome_settings(&defaults.window_chrome);
-                window::update_quick_window_preferences(&defaults.quick_window_preferences);
+                defaults.quick_window_preferences = window::update_quick_window_preferences(
+                    defaults.quick_window_preferences.clone(),
+                );
                 self.save_defaults(&defaults).await?;
                 Ok(defaults)
             }

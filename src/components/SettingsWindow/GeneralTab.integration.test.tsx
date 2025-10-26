@@ -67,7 +67,12 @@ describe('GeneralTab - Theme Selection Integration', () => {
     vi.mocked(getSettings).mockResolvedValue(mockSettings);
     vi.mocked(updateSettings).mockResolvedValue(undefined);
     platformMock.mockReturnValue('macos');
-    invokeMock.mockResolvedValue(undefined);
+    invokeMock.mockImplementation((cmd: string) => {
+      if (cmd === 'current_window_manager_label') {
+        return Promise.resolve('other');
+      }
+      return Promise.resolve(undefined);
+    });
   });
 
   it('should load and display current theme from settings', async () => {
@@ -306,6 +311,12 @@ describe('GeneralTab - Theme Selection Integration', () => {
   it('allows Linux users to disable floating quick windows', async () => {
     const user = userEvent.setup();
     platformMock.mockReturnValue('linux');
+    invokeMock.mockImplementation((cmd: string) => {
+      if (cmd === 'current_window_manager_label') {
+        return Promise.resolve('hyprland');
+      }
+      return Promise.resolve(undefined);
+    });
 
     render(<GeneralTab />);
 
@@ -326,6 +337,10 @@ describe('GeneralTab - Theme Selection Integration', () => {
         quick_window_preferences: {
           ...mockSettings.quick_window_preferences,
           float_on_tiling: false,
+          per_wm_overrides: {
+            ...mockSettings.quick_window_preferences.per_wm_overrides,
+            hyprland: false,
+          },
         },
       });
     });

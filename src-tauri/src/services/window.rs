@@ -178,11 +178,34 @@ pub fn update_window_chrome_settings(settings: &WindowChromeSettings) {
     *guard = settings.clone();
 }
 
-pub fn update_quick_window_preferences(preferences: &QuickWindowPreferences) {
+pub fn normalize_quick_window_preferences(
+    mut preferences: QuickWindowPreferences,
+) -> QuickWindowPreferences {
+    #[cfg(target_os = "linux")]
+    {
+        match current_window_manager() {
+            WindowManager::Hyprland | WindowManager::Sway | WindowManager::River => {
+                let label = window_manager_label(current_window_manager());
+                preferences
+                    .per_wm_overrides
+                    .insert(label.to_string(), preferences.float_on_tiling);
+            }
+            WindowManager::Other => {}
+        }
+    }
+
+    preferences
+}
+
+pub fn update_quick_window_preferences(
+    preferences: QuickWindowPreferences,
+) -> QuickWindowPreferences {
+    let normalized = normalize_quick_window_preferences(preferences);
     let mut guard = quick_window_preferences_handle()
         .write()
         .expect("quick window preferences lock poisoned");
-    *guard = preferences.clone();
+    *guard = normalized.clone();
+    normalized
 }
 
 fn quick_windows_should_float() -> bool {
@@ -400,6 +423,14 @@ fn refresh_on_top_state<R: Runtime>(window: &WebviewWindow<R>) {
     if let Some(expected_on_top) = expected_on_top_for_label(window.label()) {
         let _ = window.set_always_on_top(expected_on_top);
         record_expected_on_top(window.label(), expected_on_top);
+    }
+}
+
+pub fn apply_quick_window_preferences_runtime<R: Runtime>(app: &AppHandle<R>) {
+    for label in [SEARCH_WINDOW_LABEL, QUICK_ADD_WINDOW_LABEL] {
+        if let Some(window) = app.get_webview_window(label) {
+            refresh_on_top_state(&window);
+        }
     }
 }
 
@@ -1176,4 +1207,8 @@ fn window_manager_label(window_manager: WindowManager) -> &'static str {
         WindowManager::River => "river",
         WindowManager::Other => "other",
     }
+}
+
+pub fn current_window_manager_label() -> &'static str {
+    window_manager_label(current_window_manager())
 }

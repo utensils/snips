@@ -1,6 +1,7 @@
 use crate::models::settings::{AppSettings, StorageType};
 use crate::services::database::get_pool;
 use crate::services::settings::SettingsService;
+use crate::services::window;
 use crate::utils::error::AppError;
 use tauri::{AppHandle, Emitter, State};
 use tokio::sync::Mutex;
@@ -57,13 +58,14 @@ pub async fn update_settings(
 
     let service = service_guard.as_ref().unwrap();
 
-    service
-        .update_settings(settings.clone())
+    let updated_settings = service
+        .update_settings(settings)
         .await
         .map_err(|e| format!("Failed to update settings: {}", e))?;
 
+    window::apply_quick_window_preferences_runtime(&app);
     // Emit settings change event for live updates
-    app.emit("settings-changed", &settings)
+    app.emit("settings-changed", &updated_settings)
         .map_err(|e| format!("Failed to emit settings change event: {}", e))?;
 
     Ok(())
