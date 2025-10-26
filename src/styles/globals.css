@@ -17,6 +17,13 @@
   --surface-1: 210 40% 97%;
   --surface-2: 210 30% 94%;
   --surface-3: 210 25% 90%;
+  --surface-window: var(--surface-0);
+  --surface-raised: var(--surface-1);
+  --surface-subtle: var(--surface-2);
+  --outline-soft: var(--border-soft);
+  --outline-strong: var(--border);
+  --text-primary: var(--foreground);
+  --text-secondary: var(--muted-foreground);
   --input: 214.3 31.8% 91.4%;
   --ring: 221.2 83.2% 53.3%;
   --radius: 0.5rem;
@@ -40,6 +47,13 @@
   --surface-1: 225 18% 18%;
   --surface-2: 225 20% 24%;
   --surface-3: 225 25% 30%;
+  --surface-window: var(--surface-0);
+  --surface-raised: var(--surface-1);
+  --surface-subtle: var(--surface-2);
+  --outline-soft: var(--border-soft);
+  --outline-strong: var(--border);
+  --text-primary: var(--foreground);
+  --text-secondary: var(--muted-foreground);
   --input: 217.2 32.6% 17.5%;
   --ring: 224.3 76.3% 48%;
 }
@@ -61,6 +75,13 @@ html[data-platform='linux'] {
   --surface-1: 210 18% 94%;
   --surface-2: 210 16% 91%;
   --surface-3: 210 14% 88%;
+  --surface-window: var(--surface-0);
+  --surface-raised: 210 16% 93%;
+  --surface-subtle: 210 14% 90%;
+  --outline-soft: 210 15% 86%;
+  --outline-strong: 210 20% 52%;
+  --text-primary: var(--foreground);
+  --text-secondary: 218 12% 35%;
   --input: 215 18% 85%;
   --ring: 216 92% 60%;
   --font-family-base: 'Cantarell', 'Inter', 'Ubuntu', 'DejaVu Sans', sans-serif;
@@ -83,6 +104,13 @@ html[data-platform='linux'].dark {
   --surface-1: 220 14% 18%;
   --surface-2: 220 12% 22%;
   --surface-3: 220 10% 26%;
+  --surface-window: var(--surface-0);
+  --surface-raised: 220 13% 20%;
+  --surface-subtle: 220 11% 24%;
+  --outline-soft: 220 10% 32%;
+  --outline-strong: 220 18% 46%;
+  --text-primary: var(--foreground);
+  --text-secondary: 210 24% 70%;
   --input: 220 12% 30%;
   --ring: 216 85% 66%;
 }
