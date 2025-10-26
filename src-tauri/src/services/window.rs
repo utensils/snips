@@ -73,7 +73,7 @@ pub fn get_or_create_quick_add_window(app: &AppHandle) -> Result<WebviewWindow, 
     eprintln!("[DEBUG] [window.rs] Creating Quick Add window on-demand (Wayland compatibility)");
 
     // Create Quick Add window (Wayland-compatible: no visible:false)
-    let window = tauri::WebviewWindowBuilder::new(
+    let builder = tauri::WebviewWindowBuilder::new(
         app,
         QUICK_ADD_WINDOW_LABEL,
         tauri::WebviewUrl::App("index.html".into()),
@@ -81,12 +81,23 @@ pub fn get_or_create_quick_add_window(app: &AppHandle) -> Result<WebviewWindow, 
     .title("Quick Add Snippet")
     .inner_size(650.0, 700.0)
     .center()
-    .resizable(false)
-    .always_on_top(true)
-    .skip_taskbar(true)
-    .decorations(true)
-    .build()
-    .map_err(|e| AppError::TauriError(format!("Failed to create Quick Add window: {}", e)))?;
+    .decorations(true);
+
+    let builder = if cfg!(target_os = "linux") {
+        builder
+            .resizable(true)
+            .always_on_top(false)
+            .skip_taskbar(false)
+    } else {
+        builder
+            .resizable(false)
+            .always_on_top(true)
+            .skip_taskbar(true)
+    };
+
+    let window = builder
+        .build()
+        .map_err(|e| AppError::TauriError(format!("Failed to create Quick Add window: {}", e)))?;
 
     Ok(window)
 }
