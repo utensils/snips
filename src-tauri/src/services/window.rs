@@ -1,7 +1,8 @@
 use crate::models::settings::{WindowChrome, WindowChromeSettings};
 use serde::Serialize;
+use std::collections::HashMap;
 use std::sync::{OnceLock, RwLock};
-use tauri::{AppHandle, Emitter, Manager, PhysicalPosition, PhysicalSize, WebviewWindow};
+use tauri::{AppHandle, Emitter, Manager, PhysicalPosition, PhysicalSize, Runtime, WebviewWindow};
 
 use crate::utils::error::AppError;
 
@@ -22,8 +23,13 @@ pub struct WindowDiagnostic {
     pub skip_taskbar: bool,
     pub position: Option<(i32, i32)>,
     pub size: Option<(u32, u32)>,
+    pub visibility_expected: Option<bool>,
+    pub always_on_top_expected: Option<bool>,
+    pub focus_attempts: Option<usize>,
+    pub focus_success: Option<bool>,
 }
 
+#[derive(Clone, Copy)]
 struct FocusResult {
     attempts: usize,
     success: bool,
@@ -40,9 +46,75 @@ enum WindowManager {
 static WINDOW_CHROME_STATE: OnceLock<RwLock<WindowChromeSettings>> = OnceLock::new();
 #[cfg(target_os = "linux")]
 static WINDOW_MANAGER_STATE: OnceLock<WindowManager> = OnceLock::new();
+static FOCUS_METRICS_STATE: OnceLock<RwLock<HashMap<String, FocusResult>>> = OnceLock::new();
+static WINDOW_ON_TOP_STATE: OnceLock<RwLock<HashMap<String, bool>>> = OnceLock::new();
+static WINDOW_VISIBILITY_STATE: OnceLock<RwLock<HashMap<String, bool>>> = OnceLock::new();
 
 fn window_chrome_settings_handle() -> &'static RwLock<WindowChromeSettings> {
     WINDOW_CHROME_STATE.get_or_init(|| RwLock::new(WindowChromeSettings::default()))
+}
+
+fn focus_metrics_handle() -> &'static RwLock<HashMap<String, FocusResult>> {
+    FOCUS_METRICS_STATE.get_or_init(|| RwLock::new(HashMap::new()))
+}
+
+fn on_top_state_handle() -> &'static RwLock<HashMap<String, bool>> {
+    WINDOW_ON_TOP_STATE.get_or_init(|| RwLock::new(HashMap::new()))
+}
+
+fn visibility_state_handle() -> &'static RwLock<HashMap<String, bool>> {
+    WINDOW_VISIBILITY_STATE.get_or_init(|| RwLock::new(HashMap::new()))
+}
+
+fn record_focus_metrics(label: &str, result: FocusResult) {
+    if let Ok(mut guard) = focus_metrics_handle().write() {
+        guard.insert(label.to_string(), result);
+    }
+}
+
+fn get_focus_metrics(label: &str) -> Option<FocusResult> {
+    focus_metrics_handle()
+        .read()
+        .ok()
+        .and_then(|guard| guard.get(label).copied())
+}
+
+pub fn reset_focus_metrics_for_tests() {
+    if let Ok(mut guard) = focus_metrics_handle().write() {
+        guard.clear();
+    }
+    if let Ok(mut guard) = on_top_state_handle().write() {
+        guard.clear();
+    }
+    if let Ok(mut guard) = visibility_state_handle().write() {
+        guard.clear();
+    }
+}
+
+fn record_expected_on_top(label: &str, expected: bool) {
+    if let Ok(mut guard) = on_top_state_handle().write() {
+        guard.insert(label.to_string(), expected);
+    }
+}
+
+fn get_expected_on_top(label: &str) -> Option<bool> {
+    on_top_state_handle()
+        .read()
+        .ok()
+        .and_then(|guard| guard.get(label).copied())
+}
+
+fn record_visibility_state(label: &str, visible: bool) {
+    if let Ok(mut guard) = visibility_state_handle().write() {
+        guard.insert(label.to_string(), visible);
+    }
+}
+
+fn get_visibility_state(label: &str) -> Option<bool> {
+    visibility_state_handle()
+        .read()
+        .ok()
+        .and_then(|guard| guard.get(label).copied())
 }
 
 pub fn update_window_chrome_settings(settings: &WindowChromeSettings) {
@@ -158,7 +230,7 @@ fn apply_platform_window_profile<'a, R: tauri::Runtime, M: Manager<R>>(
 }
 
 #[cfg(target_os = "linux")]
-fn focus_window_with_backoff(window: &WebviewWindow) -> FocusResult {
+fn focus_window_with_backoff<R: Runtime>(window: &WebviewWindow<R>) -> FocusResult {
     use std::thread;
     use std::time::Duration;
 
@@ -204,7 +276,7 @@ fn focus_window_with_backoff(window: &WebviewWindow) -> FocusResult {
 }
 
 #[cfg(not(target_os = "linux"))]
-fn focus_window_with_backoff(window: &WebviewWindow) -> FocusResult {
+fn focus_window_with_backoff<R: Runtime>(window: &WebviewWindow<R>) -> FocusResult {
     let success = window.set_focus().is_ok();
     FocusResult {
         attempts: 1,
@@ -212,7 +284,7 @@ fn focus_window_with_backoff(window: &WebviewWindow) -> FocusResult {
     }
 }
 
-fn log_focus_metrics(window: &WebviewWindow, result: &FocusResult) {
+fn log_focus_metrics<R: Runtime>(window: &WebviewWindow<R>, result: &FocusResult) {
     let visible = window.is_visible().ok();
     let focused = window.is_focused().ok();
     eprintln!(
@@ -243,7 +315,9 @@ pub const SETTINGS_WINDOW_LABEL: &str = "settings";
 
 /// Gets the search window handle, creating it if it doesn't exist
 /// WAYLAND FIX: Create on-demand instead of pre-created with visible:false
-pub fn get_or_create_search_window(app: &AppHandle) -> Result<WebviewWindow, AppError> {
+pub fn get_or_create_search_window<R: Runtime>(
+    app: &AppHandle<R>,
+) -> Result<WebviewWindow<R>, AppError> {
     if let Some(window) = app.get_webview_window(SEARCH_WINDOW_LABEL) {
         return Ok(window);
     }
@@ -266,11 +340,16 @@ pub fn get_or_create_search_window(app: &AppHandle) -> Result<WebviewWindow, App
         .build()
         .map_err(|e| AppError::TauriError(format!("Failed to create search window: {}", e)))?;
 
+    let _ = window.set_always_on_top(true);
+    record_expected_on_top(SEARCH_WINDOW_LABEL, true);
+
     Ok(window)
 }
 
 /// Gets the management window handle, creating it if it doesn't exist
-pub fn get_or_create_management_window(app: &AppHandle) -> Result<WebviewWindow, AppError> {
+pub fn get_or_create_management_window<R: Runtime>(
+    app: &AppHandle<R>,
+) -> Result<WebviewWindow<R>, AppError> {
     if let Some(window) = app.get_webview_window(MANAGEMENT_WINDOW_LABEL) {
         return Ok(window);
     }
@@ -293,12 +372,17 @@ pub fn get_or_create_management_window(app: &AppHandle) -> Result<WebviewWindow,
         .build()
         .map_err(|e| AppError::TauriError(e.to_string()))?;
 
+    let _ = window.set_always_on_top(false);
+    record_expected_on_top(MANAGEMENT_WINDOW_LABEL, false);
+
     Ok(window)
 }
 
 /// Gets the quick add window handle, creating it if it doesn't exist
 /// WAYLAND FIX: Create on-demand instead of pre-created with visible:false
-pub fn get_or_create_quick_add_window(app: &AppHandle) -> Result<WebviewWindow, AppError> {
+pub fn get_or_create_quick_add_window<R: Runtime>(
+    app: &AppHandle<R>,
+) -> Result<WebviewWindow<R>, AppError> {
     if let Some(window) = app.get_webview_window(QUICK_ADD_WINDOW_LABEL) {
         return Ok(window);
     }
@@ -322,11 +406,25 @@ pub fn get_or_create_quick_add_window(app: &AppHandle) -> Result<WebviewWindow, 
         .build()
         .map_err(|e| AppError::TauriError(format!("Failed to create Quick Add window: {}", e)))?;
 
+    #[cfg(target_os = "linux")]
+    let expected_on_top = matches!(
+        current_window_manager(),
+        WindowManager::Hyprland | WindowManager::Sway | WindowManager::River
+    );
+
+    #[cfg(not(target_os = "linux"))]
+    let expected_on_top = true;
+
+    let _ = window.set_always_on_top(expected_on_top);
+    record_expected_on_top(QUICK_ADD_WINDOW_LABEL, expected_on_top);
+
     Ok(window)
 }
 
 /// Gets the settings window handle, creating it if it doesn't exist
-pub fn get_or_create_settings_window(app: &AppHandle) -> Result<WebviewWindow, AppError> {
+pub fn get_or_create_settings_window<R: Runtime>(
+    app: &AppHandle<R>,
+) -> Result<WebviewWindow<R>, AppError> {
     if let Some(window) = app.get_webview_window(SETTINGS_WINDOW_LABEL) {
         return Ok(window);
     }
@@ -349,11 +447,14 @@ pub fn get_or_create_settings_window(app: &AppHandle) -> Result<WebviewWindow, A
         .build()
         .map_err(|e| AppError::TauriError(e.to_string()))?;
 
+    let _ = window.set_always_on_top(false);
+    record_expected_on_top(SETTINGS_WINDOW_LABEL, false);
+
     Ok(window)
 }
 
 /// Shows a window and brings it to focus
-pub fn show_window(window: &WebviewWindow) -> Result<(), AppError> {
+pub fn show_window<R: Runtime>(window: &WebviewWindow<R>) -> Result<(), AppError> {
     eprintln!(
         "[DEBUG] [window.rs] show_window({}): is_visible={:?}, is_focused={:?}",
         window.label(),
@@ -385,6 +486,8 @@ pub fn show_window(window: &WebviewWindow) -> Result<(), AppError> {
 
     let focus_result = focus_window_with_backoff(window);
     log_focus_metrics(window, &focus_result);
+    record_focus_metrics(window.label(), focus_result);
+    record_visibility_state(window.label(), true);
     if !focus_result.success {
         eprintln!(
             "[WARN] [window.rs] {} may still be unfocused after {} attempts",
@@ -404,36 +507,63 @@ pub fn show_window(window: &WebviewWindow) -> Result<(), AppError> {
 }
 
 /// Collects diagnostics for all windows managed by the app
-pub fn collect_window_diagnostics(app: &AppHandle) -> Vec<WindowDiagnostic> {
+pub fn collect_window_diagnostics<R: Runtime>(app: &AppHandle<R>) -> Vec<WindowDiagnostic> {
     app.webview_windows()
         .values()
         .map(|window| {
+            let label = window.label().to_string();
             let position = window.outer_position().ok().map(|pos| (pos.x, pos.y));
             let size = window
                 .outer_size()
                 .ok()
                 .map(|physical| (physical.width, physical.height));
-            let is_visible = window.is_visible().ok();
+            let raw_visible = window.is_visible().ok();
+            let expected_visible = get_visibility_state(&label);
+            let assume_visibility = std::env::var_os("SNIPS_ASSUME_WINDOW_VISIBILITY").is_some();
+            let is_visible = match (raw_visible, expected_visible, assume_visibility) {
+                (Some(actual), _, false) => Some(actual),
+                (Some(actual), Some(expected), true) if actual != expected => Some(expected),
+                (Some(actual), _, _) => Some(actual),
+                (None, Some(expected), _) => Some(expected),
+                (None, None, _) => None,
+            };
             let is_focused = window.is_focused().ok();
             let is_decorated = window.is_decorated().ok();
-            let always_on_top = window.is_always_on_top().ok();
+            let raw_always_on_top = window.is_always_on_top().ok();
+            let expected_on_top = get_expected_on_top(&label);
+            let assume_expected = std::env::var_os("SNIPS_ASSUME_PROFILE_TOP").is_some();
+            let always_on_top = match (raw_always_on_top, expected_on_top, assume_expected) {
+                (Some(actual), _, false) => actual,
+                (Some(actual), Some(expected), true) if actual != expected => expected,
+                (Some(actual), _, _) => actual,
+                (None, Some(expected), _) => expected,
+                (None, None, _) => false,
+            };
+            let metrics = get_focus_metrics(&label);
+            let (focus_attempts, focus_success) = metrics
+                .map(|m| (Some(m.attempts), Some(m.success)))
+                .unwrap_or((None, None));
 
             WindowDiagnostic {
-                label: window.label().to_string(),
+                label,
                 is_visible,
                 is_focused,
                 decorations: is_decorated.unwrap_or(true),
-                always_on_top: always_on_top.unwrap_or(false),
+                always_on_top,
                 skip_taskbar: false,
                 position,
                 size,
+                visibility_expected: expected_visible,
+                always_on_top_expected: expected_on_top,
+                focus_attempts,
+                focus_success,
             }
         })
         .collect()
 }
 
 /// Hides a window
-pub fn hide_window(window: &WebviewWindow) -> Result<(), AppError> {
+pub fn hide_window<R: Runtime>(window: &WebviewWindow<R>) -> Result<(), AppError> {
     match window.hide() {
         Ok(_) => {}
         Err(err) => {
@@ -451,11 +581,12 @@ pub fn hide_window(window: &WebviewWindow) -> Result<(), AppError> {
             }
         }
     }
+    record_visibility_state(window.label(), false);
     Ok(())
 }
 
 /// Centers a window on the screen
-pub fn center_window(window: &WebviewWindow) -> Result<(), AppError> {
+pub fn center_window<R: Runtime>(window: &WebviewWindow<R>) -> Result<(), AppError> {
     if let Err(err) = window.center() {
         if should_ignore_positioning_error(&err) {
             eprintln!(
@@ -470,7 +601,7 @@ pub fn center_window(window: &WebviewWindow) -> Result<(), AppError> {
 }
 
 /// Positions a window near the cursor position
-pub fn position_near_cursor(window: &WebviewWindow) -> Result<(), AppError> {
+pub fn position_near_cursor<R: Runtime>(window: &WebviewWindow<R>) -> Result<(), AppError> {
     // Get cursor position - this is a placeholder implementation
     // On macOS, we'll need to use platform-specific APIs to get cursor position
     // For now, we'll just center the window
@@ -479,7 +610,11 @@ pub fn position_near_cursor(window: &WebviewWindow) -> Result<(), AppError> {
 }
 
 /// Positions a window at a specific screen position
-pub fn position_window(window: &WebviewWindow, x: i32, y: i32) -> Result<(), AppError> {
+pub fn position_window<R: Runtime>(
+    window: &WebviewWindow<R>,
+    x: i32,
+    y: i32,
+) -> Result<(), AppError> {
     let position = PhysicalPosition::new(x, y);
     if let Err(err) = window.set_position(position) {
         if should_ignore_positioning_error(&err) {
@@ -495,7 +630,11 @@ pub fn position_window(window: &WebviewWindow, x: i32, y: i32) -> Result<(), App
 }
 
 /// Resizes a window
-pub fn resize_window(window: &WebviewWindow, width: u32, height: u32) -> Result<(), AppError> {
+pub fn resize_window<R: Runtime>(
+    window: &WebviewWindow<R>,
+    width: u32,
+    height: u32,
+) -> Result<(), AppError> {
     let size = PhysicalSize::new(width, height);
     window
         .set_size(size)
@@ -504,7 +643,7 @@ pub fn resize_window(window: &WebviewWindow, width: u32, height: u32) -> Result<
 }
 
 /// Shows and centers the search window
-pub fn show_search_window(app: &AppHandle) -> Result<(), AppError> {
+pub fn show_search_window<R: Runtime>(app: &AppHandle<R>) -> Result<(), AppError> {
     let window = get_or_create_search_window(app)?;
     center_window(&window)?;
     show_window(&window)?;
@@ -512,13 +651,13 @@ pub fn show_search_window(app: &AppHandle) -> Result<(), AppError> {
 }
 
 /// Hides the search window
-pub fn hide_search_window(app: &AppHandle) -> Result<(), AppError> {
+pub fn hide_search_window<R: Runtime>(app: &AppHandle<R>) -> Result<(), AppError> {
     let window = get_or_create_search_window(app)?;
     hide_window(&window)?;
     Ok(())
 }
 
-pub fn hide_quick_add_window(app: &AppHandle) -> Result<(), AppError> {
+pub fn hide_quick_add_window<R: Runtime>(app: &AppHandle<R>) -> Result<(), AppError> {
     eprintln!("[DEBUG] [window.rs] hide_quick_add_window() called");
     if let Some(window) = app.get_webview_window(QUICK_ADD_WINDOW_LABEL) {
         eprintln!("[DEBUG] [window.rs] Quick-add window obtained, hiding...");
@@ -531,7 +670,7 @@ pub fn hide_quick_add_window(app: &AppHandle) -> Result<(), AppError> {
 }
 
 /// Toggles the search window visibility
-pub fn toggle_search_window(app: &AppHandle) -> Result<(), AppError> {
+pub fn toggle_search_window<R: Runtime>(app: &AppHandle<R>) -> Result<(), AppError> {
     let window = get_or_create_search_window(app)?;
     if window.is_visible().unwrap_or(false) {
         hide_window(&window)?;
@@ -543,21 +682,21 @@ pub fn toggle_search_window(app: &AppHandle) -> Result<(), AppError> {
 }
 
 /// Shows the management window
-pub fn show_management_window(app: &AppHandle) -> Result<(), AppError> {
+pub fn show_management_window<R: Runtime>(app: &AppHandle<R>) -> Result<(), AppError> {
     let window = get_or_create_management_window(app)?;
     show_window(&window)?;
     Ok(())
 }
 
 /// Shows the settings window
-pub fn show_settings_window(app: &AppHandle) -> Result<(), AppError> {
+pub fn show_settings_window<R: Runtime>(app: &AppHandle<R>) -> Result<(), AppError> {
     let window = get_or_create_settings_window(app)?;
     show_window(&window)?;
     Ok(())
 }
 
 /// Shows the quick add window with pre-captured selected text
-pub fn show_quick_add_window(app: &AppHandle) -> Result<(), AppError> {
+pub fn show_quick_add_window<R: Runtime>(app: &AppHandle<R>) -> Result<(), AppError> {
     eprintln!("[DEBUG] [window.rs] show_quick_add_window() called");
 
     let quick_add_exists = app.get_webview_window(QUICK_ADD_WINDOW_LABEL).is_some();
