@@ -12,7 +12,7 @@ const isDev = import.meta.env.DEV;
 
 const debugLog = (...messages: unknown[]): void => {
   if (isDev) {
-    console.debug('[QuickAddDialog]', ...messages);
+    console.warn('[QuickAddDialog]', ...messages);
   }
 };
 

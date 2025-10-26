@@ -18,7 +18,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 ///
 /// # Examples
 ///
-/// ```rust
+/// ```ignore
 /// record_usage(&pool, 42).await?;
 /// ```
 pub async fn record_usage(pool: &SqlitePool, snippet_id: i64) -> Result<(), AppError> {
@@ -54,7 +54,7 @@ pub async fn record_usage(pool: &SqlitePool, snippet_id: i64) -> Result<(), AppE
 ///
 /// # Examples
 ///
-/// ```rust
+/// ```ignore
 /// let analytics = get_snippet_analytics(&pool, 42).await?;
 /// println!("Usage count: {}", analytics.usage_count);
 /// ```
@@ -103,7 +103,7 @@ pub async fn get_snippet_analytics(
 ///
 /// # Examples
 ///
-/// ```rust
+/// ```ignore
 /// let analytics = get_global_analytics(&pool, 10, 20).await?;
 /// println!("Total usages: {}", analytics.total_usages);
 /// ```
@@ -200,7 +200,7 @@ pub async fn get_global_analytics(
 ///
 /// # Examples
 ///
-/// ```rust
+/// ```ignore
 /// clear_all_analytics(&pool).await?;
 /// ```
 pub async fn clear_all_analytics(pool: &SqlitePool) -> Result<(), AppError> {
@@ -225,7 +225,7 @@ pub async fn clear_all_analytics(pool: &SqlitePool) -> Result<(), AppError> {
 ///
 /// # Examples
 ///
-/// ```rust
+/// ```ignore
 /// let thirty_days_ago = SystemTime::now()
 ///     .duration_since(UNIX_EPOCH)
 ///     .unwrap()

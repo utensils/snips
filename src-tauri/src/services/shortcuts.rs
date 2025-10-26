@@ -50,7 +50,7 @@ pub const SHORTCUT_QUICK_ADD: &str = "CmdOrCtrl+Shift+A";
 ///
 /// # Examples
 ///
-/// ```rust
+/// ```ignore
 /// let shortcut_display = get_search_shortcut_display();
 /// println!("Press {} to search", shortcut_display);
 /// ```
@@ -74,7 +74,7 @@ pub fn get_search_shortcut_display() -> &'static str {
 ///
 /// # Examples
 ///
-/// ```rust
+/// ```ignore
 /// let shortcut_display = get_quick_add_shortcut_display();
 /// println!("Press {} to quick add", shortcut_display);
 /// ```
@@ -136,7 +136,7 @@ impl From<tauri::Error> for ShortcutError {
 ///
 /// # Examples
 ///
-/// ```rust
+/// ```ignore
 /// use tauri::AppHandle;
 ///
 /// fn setup(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
@@ -410,7 +410,7 @@ pub fn register_quick_add_shortcut(app: &AppHandle) -> Result<(), ShortcutError>
 ///
 /// # Examples
 ///
-/// ```rust
+/// ```ignore
 /// register_custom_shortcut(&app, "Cmd+Shift+K", |app| {
 ///     println!("Custom shortcut triggered!");
 /// })?;

@@ -64,12 +64,14 @@ sudo apt install libwebkit2gtk-4.1-dev
 sudo dnf install webkit2gtk4.1-devel
 ```
 
-**Linux Clipboard Notes:**
+**Linux Clipboard Notes & Window Behavior:**
 
 - Supports both X11 and Wayland
 - Uses PRIMARY selection for quick text capture (reads highlighted text directly)
 - Falls back to CLIPBOARD if PRIMARY is empty
 - Requires running display server (X11 or Wayland)
+- Search overlay uses native window chrome on Linux but still floats and stays on top for quick access
+- Quick Add now opens with standard decorations, appears in the task list, and can be tiled or resized like any other window
 
 **Hyprland/Wayland Integration:**
 
@@ -83,16 +85,17 @@ sudo dnf install webkit2gtk4.1-devel
   # Quick Add keybind (Ctrl+Shift+A equivalent)
   bind = CTRL SHIFT, A, exec, dbus-send --session --type=method_call --dest=io.utensils.snips /io/utensils/snips io.utensils.snips.ShowQuickAdd
 
-  # Window rules for Quick Add dialog
-  # Always floats (non-resizable)
+  # Optional window rules if you prefer the dialogs to float
   windowrulev2 = float, title:^(Quick Add Snippet)$
   windowrulev2 = center, title:^(Quick Add Snippet)$
   windowrulev2 = size 650 700, title:^(Quick Add Snippet)$
+  windowrulev2 = float, title:^(Snips)$
+  windowrulev2 = center, title:^(Snips)$
   ```
 
 - Available D-Bus methods: `ShowQuickAdd`, `ShowSearch`, `ToggleSearch`, `ShowManagement`
 - **Note**: `ToggleSearch` is recommended for the search keybind as it matches the macOS/X11 toggle behavior
-- The Quick Add window always floats (non-resizable, like the search window)
+- Quick Add uses native chrome on Linux; add or remove window rules above depending on whether you want it tiled or floating
 
 **⚠️ Linux Limitations (Active Development):**
 
@@ -100,7 +103,7 @@ sudo dnf install webkit2gtk4.1-devel
   - X11: `Ctrl+Shift+S` and `Ctrl+Shift+A` work natively via Tauri's global shortcut plugin
   - Wayland: Must use D-Bus method calls bound to window manager keybinds (see Hyprland integration above)
   - All platforms use the same internal shortcut constants (`CmdOrCtrl+Shift+S/A`) for consistency
-- **Window Focus**: Unreliable on some compositors. Windows may not always receive focus/appear on top.
+- **Window Focus**: Generally reliable with the new on-demand creation, but some compositors may still ignore the first focus request.
 - **Tray Badge**: Selection count badge not supported on most Linux system trays.
 - **Tested**: Hyprland on Wayland. Other DEs/compositors may have additional issues.
 
