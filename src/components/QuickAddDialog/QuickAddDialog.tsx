@@ -8,6 +8,20 @@ import { Input } from '@/components/ui/Input';
 import { Textarea } from '@/components/ui/Textarea';
 import { createSnippet, getAllSnippets } from '@/lib/api';
 
+const isDev = import.meta.env.DEV;
+
+const debugLog = (...messages: unknown[]): void => {
+  if (isDev) {
+    console.debug('[QuickAddDialog]', ...messages);
+  }
+};
+
+const errorLog = (...messages: unknown[]): void => {
+  if (isDev) {
+    console.error('[QuickAddDialog]', ...messages);
+  }
+};
+
 interface QuickAddDialogProps {
   onSuccess?: () => void;
   onError?: (error: string) => void;
@@ -40,7 +54,7 @@ export function QuickAddDialog({ onSuccess, onError }: QuickAddDialogProps): Rea
         const window = getCurrentWindow();
 
         // Debug: Log window label to verify we're in the right window
-        console.warn('QuickAddDialog window label:', window.label);
+        debugLog('window label:', window.label);
 
         // Small delay to ensure Tauri IPC is ready
         await new Promise((resolve) => setTimeout(resolve, 50));
@@ -50,7 +64,7 @@ export function QuickAddDialog({ onSuccess, onError }: QuickAddDialogProps): Rea
         // Use window-specific listen API for events sent via emit_to
         // Window-specific events are NOT triggered to global listeners
         unlistenText = await window.listen<string>('selected-text-captured', (event) => {
-          console.warn('Received selected-text-captured event:', event.payload.substring(0, 50));
+          debugLog('received selected-text-captured event:', event.payload.substring(0, 50));
           if (mounted) {
             setSelectedText(event.payload);
             setIsLoading(false);
@@ -61,7 +75,7 @@ export function QuickAddDialog({ onSuccess, onError }: QuickAddDialogProps): Rea
 
         // Listen for errors from the backend
         unlistenError = await window.listen<string>('selected-text-error', (event) => {
-          console.error('Received selected-text-error event:', event.payload);
+          errorLog('received selected-text-error event:', event.payload);
           if (mounted) {
             setError(event.payload);
             setIsLoading(false);
@@ -69,9 +83,9 @@ export function QuickAddDialog({ onSuccess, onError }: QuickAddDialogProps): Rea
           }
         });
 
-        console.warn('Listeners set up successfully, waiting for events...');
+        debugLog('listeners set up successfully, waiting for events...');
       } catch (err) {
-        console.error('Failed to setup listener:', err);
+        errorLog('failed to setup listener:', err);
         if (mounted) {
           const errorMessage = err instanceof Error ? err.message : 'Failed to setup listener';
           setError(errorMessage);
@@ -101,7 +115,7 @@ export function QuickAddDialog({ onSuccess, onError }: QuickAddDialogProps): Rea
         });
         setExistingTags(Array.from(allTags).sort());
       } catch (err) {
-        console.error('Failed to fetch existing tags:', err);
+        errorLog('failed to fetch existing tags:', err);
       }
     };
 
@@ -194,10 +208,10 @@ export function QuickAddDialog({ onSuccess, onError }: QuickAddDialogProps): Rea
       try {
         await invoke('hide_quick_add_window');
       } catch (err) {
-        console.error('[QuickAdd] Failed to hide window:', err);
+        errorLog('failed to hide window:', err);
       }
     } catch (err) {
-      console.error('[QuickAdd] Failed to create snippet:', err);
+      errorLog('failed to create snippet:', err);
       const errorMessage = err instanceof Error ? err.message : 'Failed to create snippet';
       setError(errorMessage);
       setIsSaving(false);
@@ -223,7 +237,7 @@ export function QuickAddDialog({ onSuccess, onError }: QuickAddDialogProps): Rea
     try {
       await invoke('hide_quick_add_window');
     } catch (err) {
-      console.error('[QuickAdd] Failed to hide window on cancel:', err);
+      errorLog('failed to hide window on cancel:', err);
     }
   };
 
