@@ -14,6 +14,40 @@ Quick access via global shortcuts enables efficient search, selection, and combi
 
 </div>
 
+## Background
+
+I often include the same snippets in my prompts (eg. instructions to lint, update checklists, capture screenshots) and needed a way to quickly capture and combine these reusable pieces into comprehensive prompts for LLM interactions.
+
+This project serves as a practical demonstration of my LLM-assisted development workflow. Rather than relying solely on scattered code comments and ad-hoc documentation, I structure projects around four foundational documents that guide both human developers and AI agents:
+
+### Documentation Structure
+
+1. **[VISION.md](VISION.md)** - Product vision and strategic direction
+   - Defines the product's purpose, target users, and core use cases
+   - Establishes MVP feature scope and future enhancement roadmap
+   - Serves as the north star for all development decisions
+   - Helps LLMs understand the "why" behind features and architectural choices
+
+2. **[STANDARDS.md](STANDARDS.md)** - Coding standards and quality requirements
+   - Comprehensive coding standards for TypeScript and Rust
+   - Tooling configuration (ESLint, Prettier, Clippy, rustfmt)
+   - Testing requirements, performance targets, and accessibility guidelines
+   - Ensures LLMs produce consistent, high-quality code that passes all checks
+
+3. **[TECH_DESIGN.md](TECH_DESIGN.md)** - Technical architecture and implementation details
+   - Complete system architecture and technology stack decisions
+   - Database schema, API design, and component structure
+   - Technical constraints, security considerations, and risk mitigation
+   - Provides LLMs with the architectural context needed for implementation
+
+4. **[ROADMAP.md](ROADMAP.md)** - Phased development plan with concrete tasks
+   - Breaks down development into phases with specific, actionable task groups
+   - Documents task dependencies to enable parallel work by multiple agents
+   - Tracks completion status and provides success criteria for each phase
+   - Serves as a coordination layer for both humans and AI assistants
+
+This documentation-first approach enables efficient collaboration with LLM coding assistants by providing comprehensive context upfront, reducing back-and-forth clarifications, and ensuring consistent output aligned with project goals.
+
 ## Features
 
 - **Quick Snippet Capture**: Global shortcut (`Cmd+Shift+A`) to save selected text as a snippet
