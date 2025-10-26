@@ -3,7 +3,8 @@ import { type UnlistenFn } from '@tauri-apps/api/event';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { type FormEvent, type ReactElement, useCallback, useEffect, useState } from 'react';
 
-import { HeaderBar, Pane, WindowScaffold } from '@/components/adwaita';
+import { WindowScaffold } from '@/components/adwaita';
+import { Surface, Toolbar, ToolbarIconButton } from '@/components/ui';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Spinner } from '@/components/ui/Spinner';
@@ -289,35 +290,35 @@ export function QuickAddDialog({
   const renderBody = (): ReactElement => {
     if (isLoading) {
       return (
-        <Pane padding="lg" className="flex min-h-[240px] items-center justify-center">
-          <div className="flex flex-col items-center gap-3 text-sm text-muted-foreground">
+        <Surface padding="lg" className="flex min-h-[240px] items-center justify-center">
+          <div className="flex flex-col items-center gap-3 text-[color:hsl(var(--text-secondary))]">
             <Spinner />
-            <span>Capturing selected text…</span>
+            <span className="typography-body">Capturing selected text…</span>
           </div>
-        </Pane>
+        </Surface>
       );
     }
 
     if (error && !selectedText) {
       return (
-        <Pane padding="lg" className="space-y-4">
-          <div className="space-y-2">
-            <h2 className="text-lg font-semibold text-red-600 dark:text-red-200">
+        <Surface padding="lg" className="space-y-4">
+          <div className="space-y-1">
+            <h2 className="typography-heading text-red-500 dark:text-red-300">
               Something went wrong
             </h2>
-            <p className="text-sm text-muted-foreground">{error}</p>
+            <p className="typography-body text-[color:hsl(var(--text-secondary))]">{error}</p>
           </div>
           <div className="flex justify-end">
-            <Button onClick={handleCancel} variant="secondary">
+            <Button onClick={handleCancel} variant="tonal">
               Close
             </Button>
           </div>
-        </Pane>
+        </Surface>
       );
     }
 
     return (
-      <Pane padding="lg" className="space-y-6">
+      <Surface padding="lg" className="space-y-5">
         <form onSubmit={handleSubmit} className="space-y-5">
           {/* Selected text (editable) */}
           <Textarea
@@ -374,12 +375,12 @@ export function QuickAddDialog({
 
             {/* Tag suggestions dropdown */}
             {showTagSuggestions && tagSuggestions.length > 0 && (
-              <div className="absolute z-20 mt-2 w-full max-h-40 overflow-y-auto rounded-xl border border-border/60 bg-background/95 shadow-lg shadow-black/10 supports-[backdrop-filter]:backdrop-blur">
+              <div className="absolute z-20 mt-2 w-full max-h-40 overflow-y-auto rounded-[9px] border border-[hsl(var(--outline-soft))] bg-[hsl(var(--surface-raised))] shadow-lg shadow-black/10 supports-[backdrop-filter]:backdrop-blur">
                 {tagSuggestions.map((suggestion) => (
                   <button
                     key={suggestion}
                     type="button"
-                    className="w-full px-3 py-2 text-left text-sm text-foreground transition-colors hover:bg-muted/40 focus:bg-muted/40 focus:outline-none"
+                    className="w-full px-3 py-2 text-left text-sm text-[color:hsl(var(--text-primary))] transition-colors hover:bg-[color-mix(in_srgb,hsl(var(--accent))_10%,hsl(var(--surface-raised)))] focus:bg-[color-mix(in_srgb,hsl(var(--accent))_12%,hsl(var(--surface-raised)))] focus:outline-none"
                     onMouseDown={(e) => {
                       e.preventDefault();
                       handleTagSuggestionClick(suggestion);
@@ -395,7 +396,7 @@ export function QuickAddDialog({
           {/* Error message */}
           {error && selectedText && (
             <div
-              className="rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-600 dark:text-red-200"
+              className="rounded-[9px] border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-600 dark:text-red-200"
               role="alert"
             >
               {error}
@@ -407,12 +408,12 @@ export function QuickAddDialog({
             <Button type="submit" variant="primary" fullWidth disabled={isSaving}>
               {isSaving ? 'Saving...' : 'Save Snippet'}
             </Button>
-            <Button type="button" variant="secondary" onClick={handleCancel} fullWidth>
+            <Button type="button" variant="tonal" onClick={handleCancel} fullWidth>
               Cancel
             </Button>
           </div>
         </form>
-      </Pane>
+      </Surface>
     );
   };
 
@@ -424,26 +425,36 @@ export function QuickAddDialog({
         : undefined;
 
   return (
-    <WindowScaffold size="medium">
-      <HeaderBar
-        title="Quick Add Snippet"
-        subtitle={headerSubtitle}
-        compact
-        borderless
-        end={
-          <Button variant="ghost" onClick={handleCancel} type="button">
-            Close
-          </Button>
-        }
-      />
+    <WindowScaffold size="medium" contentClassName="flex h-full flex-col gap-3">
+      <Toolbar className="rounded-t-[12px] items-center justify-between">
+        <div className="flex flex-col">
+          <span className="typography-caption uppercase tracking-[0.18em] text-[color:hsl(var(--text-secondary))]">
+            Quick Add
+          </span>
+          <span className="typography-heading text-[color:hsl(var(--text-primary))]">Snippet</span>
+        </div>
+        <div className="flex items-center gap-3">
+          {headerSubtitle ? (
+            <span className="typography-caption text-[color:hsl(var(--text-secondary))]">
+              {headerSubtitle}
+            </span>
+          ) : null}
+          <ToolbarIconButton aria-label="Close quick add" onClick={handleCancel}>
+            <span className="text-lg leading-none">&times;</span>
+          </ToolbarIconButton>
+        </div>
+      </Toolbar>
 
       {clipboardWarning && !isLoading && (
-        <Pane
-          padding="sm"
-          className="border border-amber-500/40 bg-amber-500/10 text-sm text-amber-900 dark:text-amber-200"
+        <Surface
+          level="subtle"
+          padding="md"
+          className="border border-amber-500/30 bg-amber-500/10 text-[color:hsl(var(--text-primary))]"
         >
-          {clipboardWarning}
-        </Pane>
+          <span className="typography-body text-amber-900 dark:text-amber-200">
+            {clipboardWarning}
+          </span>
+        </Surface>
       )}
 
       {renderBody()}

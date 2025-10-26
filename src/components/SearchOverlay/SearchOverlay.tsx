@@ -3,6 +3,7 @@ import { type CSSProperties, type ReactElement, useCallback, useEffect, useRef }
 import { List, type ListImperativeAPI } from 'react-window';
 
 import { WindowScaffold } from '@/components/adwaita';
+import { ContentArea, Surface, Toolbar, ToolbarIconButton } from '@/components/ui';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -51,15 +52,15 @@ function SearchResultItem({
   // Determine background color based on selection and focus state
   const getBackgroundClass = (): string => {
     if (isSelected && isFocused) {
-      return 'bg-accent/20 border-l-3 border-accent';
+      return 'bg-[color-mix(in_srgb,hsl(var(--accent))_24%,hsl(var(--surface-raised)))] border-l-2 border-[hsl(var(--accent))]';
     }
     if (isSelected) {
-      return 'bg-accent/12 border-l-3 border-accent/70';
+      return 'bg-[color-mix(in_srgb,hsl(var(--accent))_18%,hsl(var(--surface-raised)))] border-l-2 border-[color-mix(in_srgb,hsl(var(--accent))_85%,transparent)]';
     }
     if (isFocused) {
-      return 'bg-surface-2/70';
+      return 'bg-[color-mix(in_srgb,hsl(var(--accent))_12%,hsl(var(--surface-raised)))]';
     }
-    return 'hover:bg-surface-1/60';
+    return 'hover:bg-[color-mix(in_srgb,hsl(var(--accent))_6%,hsl(var(--surface-raised)))]';
   };
 
   return (
@@ -67,7 +68,7 @@ function SearchResultItem({
       style={style}
       onClick={onToggleSelect}
       className={`
-        px-4 py-3 border-b border-border/60 transition-colors duration-150 cursor-pointer
+        cursor-pointer border-b border-[hsl(var(--outline-soft))] px-4 py-3 transition-colors duration-150
         ${getBackgroundClass()}
       `}
       role="button"
@@ -78,7 +79,7 @@ function SearchResultItem({
         <div className="mt-0.5 flex h-5 w-5 items-center justify-center">
           {isSelected ? (
             <svg
-              className="h-5 w-5 text-accent"
+              className="h-5 w-5 text-[hsl(var(--accent))]"
               fill="currentColor"
               viewBox="0 0 20 20"
               xmlns="http://www.w3.org/2000/svg"
@@ -90,13 +91,17 @@ function SearchResultItem({
               />
             </svg>
           ) : (
-            <div className="h-5 w-5 rounded-full border-2 border-border-soft" />
+            <div className="h-5 w-5 rounded-full border-2 border-[hsl(var(--outline-soft))]" />
           )}
         </div>
         <div className="flex-1 min-w-0">
           <div className="mb-1 flex flex-wrap items-center gap-2">
             <h3
-              className={`truncate font-medium ${isSelected ? 'text-accent-foreground' : 'text-foreground'}`}
+              className={`truncate font-medium ${
+                isSelected
+                  ? 'text-[color:hsl(var(--accent-foreground))]'
+                  : 'text-[color:hsl(var(--text-primary))]'
+              }`}
             >
               {result.name}
             </h3>
@@ -116,7 +121,11 @@ function SearchResultItem({
             )}
           </div>
           <p
-            className={`line-clamp-2 text-sm ${isSelected ? 'text-accent-foreground' : 'text-muted-foreground'}`}
+            className={`line-clamp-2 text-sm ${
+              isSelected
+                ? 'text-[color:hsl(var(--accent-foreground))]'
+                : 'text-[color:hsl(var(--text-secondary))]'
+            }`}
           >
             {result.content}
           </p>
@@ -331,79 +340,73 @@ export function SearchOverlay(): ReactElement {
       variant="overlay"
       size="wide"
       fullHeight
-      contentClassName="flex h-full flex-col overflow-hidden rounded-[28px] border border-border-soft bg-surface-1/80 shadow-xl shadow-black/15 supports-[backdrop-filter]:backdrop-blur-2xl motion-safe:animate-fade-in-scale"
+      contentClassName="flex h-full flex-col gap-3 motion-safe:animate-fade-in-scale"
     >
-      <div className="flex h-full flex-col">
-        {/* Header */}
-        <div
-          className="flex-shrink-0 border-b border-border-soft bg-surface-2/70 p-4 supports-[backdrop-filter]:backdrop-blur"
-          data-tauri-drag-region
-        >
-          <div className="flex items-center gap-3">
-            <div className="flex-1">
-              <Input
-                ref={inputRef}
-                type="text"
-                placeholder="Search snippets..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                fullWidth
-                autoFocus
-                aria-label="Search snippets"
-              />
-            </div>
-            <Button variant="ghost" size="sm" onClick={handleClose} aria-label="Close search">
-              Esc
-            </Button>
-          </div>
-
-          {/* Selected count indicator and actions */}
-          {hasResults && (
-            <div className="mt-3 flex flex-col items-start justify-between gap-2 sm:flex-row sm:items-center motion-safe:animate-slide-down">
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground">
-                  {selectedSnippets.size > 0
-                    ? `${selectedSnippets.size} of ${searchResults.length} selected`
-                    : `${searchResults.length} result${searchResults.length === 1 ? '' : 's'}`}
-                </span>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                <Button size="sm" variant="ghost" onClick={handleSelectAll}>
-                  {allSelected ? 'Deselect All' : 'Select All'}
-                </Button>
-                {selectedSnippets.size > 0 && (
-                  <>
-                    <Button size="sm" variant="ghost" onClick={() => clearSelected()}>
-                      Clear
-                    </Button>
-                    <Button size="sm" onClick={handleCopy}>
-                      Copy ({selectedSnippets.size})
-                    </Button>
-                  </>
-                )}
-              </div>
-            </div>
-          )}
+      <Toolbar
+        className="rounded-t-[16px] flex-col gap-3 border border-transparent bg-[hsl(var(--surface-raised))] md:flex-row md:items-center md:justify-between"
+        data-tauri-drag-region
+      >
+        <div className="flex w-full items-center gap-3">
+          <Input
+            ref={inputRef}
+            type="text"
+            placeholder="Search snippets..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            fullWidth
+            autoFocus
+            aria-label="Search snippets"
+          />
         </div>
+        <ToolbarIconButton aria-label="Close search" onClick={handleClose}>
+          <span className="text-sm font-semibold">Esc</span>
+        </ToolbarIconButton>
+      </Toolbar>
 
-        {/* Content */}
-        <div className="flex flex-1 flex-col overflow-hidden bg-surface-0/80">
-          {/* Loading state */}
+      <ContentArea className="flex flex-1 flex-col overflow-hidden" spacing="md">
+        {hasResults && (
+          <Surface
+            level="subtle"
+            padding="md"
+            className="flex flex-col gap-2 text-[color:hsl(var(--text-primary))] md:flex-row md:items-center md:justify-between"
+          >
+            <span className="typography-body text-[color:hsl(var(--text-secondary))]">
+              {selectedSnippets.size > 0
+                ? `${selectedSnippets.size} of ${searchResults.length} selected`
+                : `${searchResults.length} result${searchResults.length === 1 ? '' : 's'}`}
+            </span>
+            <div className="flex flex-wrap gap-2">
+              <Button size="sm" variant="ghost" onClick={handleSelectAll}>
+                {allSelected ? 'Deselect All' : 'Select All'}
+              </Button>
+              {selectedSnippets.size > 0 && (
+                <>
+                  <Button size="sm" variant="ghost" onClick={() => clearSelected()}>
+                    Clear
+                  </Button>
+                  <Button size="sm" onClick={handleCopy}>
+                    Copy ({selectedSnippets.size})
+                  </Button>
+                </>
+              )}
+            </div>
+          </Surface>
+        )}
+
+        <Surface level="raised" padding="none" className="flex flex-1 flex-col overflow-hidden">
           {isSearching && (
-            <div className="flex h-32 items-center justify-center text-muted-foreground">
+            <div className="flex h-32 items-center justify-center text-[color:hsl(var(--text-secondary))]">
               <Spinner size="lg" />
             </div>
           )}
 
-          {/* Empty state */}
           {showEmpty && (
-            <div className="flex h-32 flex-col items-center justify-center text-muted-foreground">
-              <p className="text-lg font-medium">No snippets found</p>
-              <p className="mt-1 text-sm">Try a different search term</p>
+            <div className="flex h-32 flex-col items-center justify-center text-[color:hsl(var(--text-secondary))]">
+              <p className="typography-heading">No snippets found</p>
+              <p className="typography-body mt-1">Try a different search term</p>
             </div>
           )}
 
-          {/* Results list */}
           {showResults && (
             <List<VirtualizedRowCustomProps>
               listRef={listRef}
@@ -421,10 +424,11 @@ export function SearchOverlay(): ReactElement {
             />
           )}
 
-          {/* Initial state with keyboard shortcuts help */}
           {!isSearching && !debouncedQuery.trim() && (
-            <div className="flex flex-col items-center justify-center p-8 text-muted-foreground">
-              <p className="mb-4 text-lg">Start typing to search snippets</p>
+            <div className="flex flex-col items-center justify-center p-8 text-[color:hsl(var(--text-secondary))]">
+              <p className="mb-4 text-lg font-medium text-[color:hsl(var(--text-primary))]">
+                Start typing to search snippets
+              </p>
               <div className="space-y-2 text-sm">
                 <div className="flex items-center gap-2">
                   <KeyboardShortcutHint keys={['↑', '↓']} />
@@ -449,10 +453,9 @@ export function SearchOverlay(): ReactElement {
               </div>
             </div>
           )}
-        </div>
-      </div>
+        </Surface>
+      </ContentArea>
 
-      {/* Toast notification */}
       {toast && <Toast {...toast} />}
     </WindowScaffold>
   );
