@@ -23,6 +23,8 @@ function App(): ReactElement {
         const platformName = await platform();
         const root = document.documentElement;
         root.setAttribute('data-platform', platformName);
+        const chrome = platformName === 'macos' ? 'frameless' : 'native';
+        root.setAttribute('data-chrome', chrome);
       } catch (err) {
         if (import.meta.env.DEV) {
           console.error('Failed to determine platform', err);
