@@ -2,6 +2,45 @@ use tauri::{AppHandle, Emitter, Manager, PhysicalPosition, PhysicalSize, Webview
 
 use crate::utils::error::AppError;
 
+/// Profiles that capture platform-specific window defaults
+enum WindowProfile {
+    Overlay,
+    Dialog,
+    Standard,
+}
+
+fn apply_platform_window_profile<'a, R: tauri::Runtime, M: Manager<R>>(
+    builder: tauri::WebviewWindowBuilder<'a, R, M>,
+    profile: WindowProfile,
+) -> tauri::WebviewWindowBuilder<'a, R, M> {
+    match profile {
+        WindowProfile::Overlay => builder
+            .resizable(false)
+            .skip_taskbar(true)
+            .always_on_top(true)
+            .decorations(false),
+        WindowProfile::Dialog => {
+            if cfg!(target_os = "linux") {
+                builder
+                    .resizable(true)
+                    .always_on_top(false)
+                    .skip_taskbar(false)
+                    .decorations(true)
+            } else {
+                builder
+                    .resizable(false)
+                    .always_on_top(true)
+                    .skip_taskbar(true)
+                    .decorations(true)
+            }
+        }
+        WindowProfile::Standard => builder
+            .resizable(true)
+            .skip_taskbar(false)
+            .decorations(true),
+    }
+}
+
 /// Window labels used in the application
 pub const SEARCH_WINDOW_LABEL: &str = "search";
 pub const MANAGEMENT_WINDOW_LABEL: &str = "management";
@@ -18,7 +57,7 @@ pub fn get_or_create_search_window(app: &AppHandle) -> Result<WebviewWindow, App
     eprintln!("[DEBUG] [window.rs] Creating search window on-demand (Wayland compatibility)");
 
     // Create search window (Wayland-compatible: no visible:false)
-    let window = tauri::WebviewWindowBuilder::new(
+    let builder = tauri::WebviewWindowBuilder::new(
         app,
         SEARCH_WINDOW_LABEL,
         tauri::WebviewUrl::App("index.html".into()),
@@ -26,13 +65,13 @@ pub fn get_or_create_search_window(app: &AppHandle) -> Result<WebviewWindow, App
     .title("Snips")
     .inner_size(600.0, 400.0)
     .center()
-    .resizable(false)
-    .decorations(false)
-    .transparent(true)
-    .always_on_top(true)
-    .skip_taskbar(true)
-    .build()
-    .map_err(|e| AppError::TauriError(format!("Failed to create search window: {}", e)))?;
+    .transparent(true);
+
+    let builder = apply_platform_window_profile(builder, WindowProfile::Overlay);
+
+    let window = builder
+        .build()
+        .map_err(|e| AppError::TauriError(format!("Failed to create search window: {}", e)))?;
 
     Ok(window)
 }
@@ -46,19 +85,20 @@ pub fn get_or_create_management_window(app: &AppHandle) -> Result<WebviewWindow,
     eprintln!("[DEBUG] [window.rs] Creating management window on-demand (Wayland compatibility)");
 
     // Create management window (Wayland-compatible: no visible:false)
-    let window = tauri::WebviewWindowBuilder::new(
+    let builder = tauri::WebviewWindowBuilder::new(
         app,
         MANAGEMENT_WINDOW_LABEL,
         tauri::WebviewUrl::App("index.html".into()),
     )
     .title("Snips - Management")
     .inner_size(1000.0, 700.0)
-    .center()
-    .resizable(true)
-    .skip_taskbar(false)
-    .decorations(true)
-    .build()
-    .map_err(|e| AppError::TauriError(e.to_string()))?;
+    .center();
+
+    let builder = apply_platform_window_profile(builder, WindowProfile::Standard);
+
+    let window = builder
+        .build()
+        .map_err(|e| AppError::TauriError(e.to_string()))?;
 
     Ok(window)
 }
@@ -83,17 +123,7 @@ pub fn get_or_create_quick_add_window(app: &AppHandle) -> Result<WebviewWindow, 
     .center()
     .decorations(true);
 
-    let builder = if cfg!(target_os = "linux") {
-        builder
-            .resizable(true)
-            .always_on_top(false)
-            .skip_taskbar(false)
-    } else {
-        builder
-            .resizable(false)
-            .always_on_top(true)
-            .skip_taskbar(true)
-    };
+    let builder = apply_platform_window_profile(builder, WindowProfile::Dialog);
 
     let window = builder
         .build()
@@ -111,19 +141,20 @@ pub fn get_or_create_settings_window(app: &AppHandle) -> Result<WebviewWindow, A
     eprintln!("[DEBUG] [window.rs] Creating settings window on-demand (Wayland compatibility)");
 
     // Create settings window (Wayland-compatible: no visible:false)
-    let window = tauri::WebviewWindowBuilder::new(
+    let builder = tauri::WebviewWindowBuilder::new(
         app,
         SETTINGS_WINDOW_LABEL,
         tauri::WebviewUrl::App("index.html".into()),
     )
     .title("Snips - Settings")
     .inner_size(1000.0, 700.0)
-    .center()
-    .resizable(true)
-    .skip_taskbar(false)
-    .decorations(true)
-    .build()
-    .map_err(|e| AppError::TauriError(e.to_string()))?;
+    .center();
+
+    let builder = apply_platform_window_profile(builder, WindowProfile::Standard);
+
+    let window = builder
+        .build()
+        .map_err(|e| AppError::TauriError(e.to_string()))?;
 
     Ok(window)
 }
