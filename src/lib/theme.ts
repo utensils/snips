@@ -1,24 +1,60 @@
 import type { ThemePalette } from '@/types/theme';
 
-const COLOR_MAPPING: Record<string, string[]> = {
-  '--background': ['base', 'background'],
-  '--foreground': ['text', 'foreground'],
-  '--primary': ['selected_text', 'accent'],
-  '--primary-foreground': ['foreground', 'text'],
-  '--accent': ['accent', 'selected_text'],
-  '--accent-foreground': ['text', 'foreground'],
-  '--border': ['border', 'outline'],
-  '--border-soft': ['border', 'surface', 'muted'],
-  '--muted': ['surface', 'muted'],
-  '--muted-foreground': ['muted_foreground', 'muted', 'text_disabled'],
-  '--surface-0': ['background', 'base'],
-  '--surface-1': ['surface', 'surface_highlight', 'surface_alt'],
-  '--surface-2': ['muted', 'surface_low', 'surface_raised'],
-  '--surface-3': ['shadow', 'surface_deep', 'surface_darker'],
-};
+const ROLE_MAPPING: Array<{ cssVar: string; keys: string[] }> = [
+  { cssVar: '--color-neutral-0', keys: ['base', 'background'] },
+  { cssVar: '--color-neutral-1', keys: ['surface', 'surface_highlight', 'surface_alt'] },
+  { cssVar: '--color-neutral-2', keys: ['muted', 'surface_low', 'surface_raised'] },
+  { cssVar: '--color-neutral-3', keys: ['shadow', 'surface_deep', 'surface_darker'] },
+  { cssVar: '--color-text-primary', keys: ['text', 'foreground'] },
+  {
+    cssVar: '--color-text-secondary',
+    keys: ['text_secondary', 'muted_foreground', 'text_disabled', 'muted'],
+  },
+  { cssVar: '--color-accent-primary', keys: ['accent', 'selected_text', 'highlight'] },
+  {
+    cssVar: '--color-accent-foreground',
+    keys: ['accent_foreground', 'foreground', 'text', 'background'],
+  },
+  { cssVar: '--color-outline-strong', keys: ['outline_strong', 'outline', 'border'] },
+  { cssVar: '--color-outline-soft', keys: ['outline_soft', 'surface', 'border', 'muted'] },
+  { cssVar: '--color-muted', keys: ['surface_muted', 'muted', 'surface'] },
+  {
+    cssVar: '--color-muted-foreground',
+    keys: ['muted_foreground', 'text_disabled', 'text_secondary'],
+  },
+];
+
+const LEGACY_DERIVED_VARS = [
+  '--background',
+  '--foreground',
+  '--primary',
+  '--primary-foreground',
+  '--secondary',
+  '--secondary-foreground',
+  '--accent',
+  '--accent-foreground',
+  '--muted',
+  '--muted-foreground',
+  '--border',
+  '--border-soft',
+  '--surface-0',
+  '--surface-1',
+  '--surface-2',
+  '--surface-3',
+  '--surface-window',
+  '--surface-raised',
+  '--surface-subtle',
+  '--outline-soft',
+  '--outline-strong',
+  '--text-primary',
+  '--text-secondary',
+  '--input',
+  '--ring',
+];
 
 const OMARCHY_STYLE_VARS = new Set<string>([
-  ...Object.keys(COLOR_MAPPING),
+  ...ROLE_MAPPING.map((role) => role.cssVar),
+  ...LEGACY_DERIVED_VARS,
   '--icon-theme',
   '--omarchy-wallpaper',
 ]);
@@ -213,9 +249,9 @@ export function applyOmarchyPalette(palette: ThemePalette, wallpaperSrc?: string
   root.dataset.omarchyTheme = palette.name;
   root.dataset.omarchyLuminance = palette.is_light ? 'light' : 'dark';
 
-  const entries = Object.entries(COLOR_MAPPING) as Array<[string, string[]]>;
   const appliedValues = new Map<string, string>();
-  entries.forEach(([cssVar, keys]) => {
+
+  ROLE_MAPPING.forEach(({ cssVar, keys }) => {
     const colorKey = keys.find((key) => palette.colors[key] !== undefined);
     if (!colorKey) {
       return;
@@ -226,10 +262,12 @@ export function applyOmarchyPalette(palette: ThemePalette, wallpaperSrc?: string
       return;
     }
     const hsl = normalizeHsl(value);
-    if (hsl) {
-      root.style.setProperty(cssVar, hsl);
-      appliedValues.set(cssVar, hsl);
+    if (!hsl) {
+      return;
     }
+
+    root.style.setProperty(cssVar, hsl);
+    appliedValues.set(cssVar, hsl);
   });
 
   if (palette.icon_theme) {
@@ -265,9 +303,26 @@ export function applyOmarchyPalette(palette: ThemePalette, wallpaperSrc?: string
     };
 
     const colorPairs: Array<{ background: string; foreground: string; label: string }> = [
-      { background: '--background', foreground: '--foreground', label: 'foreground/background' },
-      { background: '--surface-1', foreground: '--foreground', label: 'surface-1/foreground' },
-      { background: '--background', foreground: '--accent', label: 'accent/background' },
+      {
+        background: '--color-neutral-0',
+        foreground: '--color-text-primary',
+        label: 'text-primary on neutral-0',
+      },
+      {
+        background: '--color-neutral-1',
+        foreground: '--color-text-primary',
+        label: 'text-primary on neutral-1',
+      },
+      {
+        background: '--color-neutral-0',
+        foreground: '--color-accent-primary',
+        label: 'accent on neutral-0',
+      },
+      {
+        background: '--color-accent-primary',
+        foreground: '--color-accent-foreground',
+        label: 'accent foreground',
+      },
     ];
 
     colorPairs.forEach(({ background, foreground, label }) => {

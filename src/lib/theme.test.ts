@@ -16,6 +16,7 @@ const basePalette: ThemePalette = {
     muted: '#dddddd',
     border: '#cccccc',
     accent: '#3366ff',
+    accent_foreground: '#ffffff',
     selected_text: '#3366ff',
   },
   is_light: true,
@@ -41,8 +42,8 @@ describe('applyOmarchyPalette', () => {
     expect(root.dataset.omarchyLuminance).toBe('light');
     expect(root.dataset.omarchyIconTheme).toBe('adwaita');
 
-    expect(root.style.getPropertyValue('--background')).not.toBe('');
-    expect(root.style.getPropertyValue('--foreground')).not.toBe('');
+    expect(root.style.getPropertyValue('--color-neutral-0')).not.toBe('');
+    expect(root.style.getPropertyValue('--color-text-primary')).not.toBe('');
     expect(root.style.getPropertyValue('--omarchy-wallpaper')).toContain('asset:///wallpaper.png');
   });
 
@@ -65,7 +66,7 @@ describe('applyOmarchyPalette', () => {
     const warnings = warnSpy.mock.calls
       .flat()
       .filter((call): call is string => typeof call === 'string');
-    expect(warnings.some((message) => message.includes('low foreground/background contrast'))).toBe(
+    expect(warnings.some((message) => message.includes('text-primary on neutral-0 contrast'))).toBe(
       true
     );
   });
@@ -75,7 +76,7 @@ describe('applyOmarchyPalette', () => {
     clearOmarchyPalette();
 
     expect(root.dataset.omarchyTheme).toBeUndefined();
-    expect(root.style.getPropertyValue('--background')).toBe('');
+    expect(root.style.getPropertyValue('--color-neutral-0')).toBe('');
     expect(root.style.getPropertyValue('--omarchy-wallpaper')).toBe('');
   });
 });

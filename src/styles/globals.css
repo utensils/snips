@@ -1,31 +1,46 @@
 @import 'tailwindcss';
 
 :root {
-  --background: 0 0% 100%;
-  --foreground: 222.2 84% 4.9%;
-  --primary: 221.2 83.2% 53.3%;
-  --primary-foreground: 210 40% 98%;
-  --secondary: 210 40% 96.1%;
-  --secondary-foreground: 222.2 47.4% 11.2%;
-  --accent: 221.2 83.2% 53.3%;
-  --accent-foreground: 210 40% 98%;
-  --muted: 210 40% 96.1%;
-  --muted-foreground: 215.4 16.3% 46.9%;
-  --border: 214.3 31.8% 91.4%;
-  --border-soft: 214.3 31.8% 86%;
-  --surface-0: 0 0% 100%;
-  --surface-1: 210 40% 97%;
-  --surface-2: 210 30% 94%;
-  --surface-3: 210 25% 90%;
+  /* Base color roles */
+  --color-neutral-0: 0 0% 100%;
+  --color-neutral-1: 210 40% 97%;
+  --color-neutral-2: 210 30% 94%;
+  --color-neutral-3: 210 25% 90%;
+  --color-text-primary: 222.2 84% 4.9%;
+  --color-text-secondary: 215.4 16.3% 46.9%;
+  --color-accent-primary: 221.2 83.2% 53.3%;
+  --color-accent-foreground: 210 40% 98%;
+  --color-outline-soft: 214.3 31.8% 86%;
+  --color-outline-strong: 214.3 31.8% 91.4%;
+  --color-muted: 210 40% 96.1%;
+  --color-muted-foreground: 215.4 16.3% 46.9%;
+
+  /* Derived tokens */
+  --background: var(--color-neutral-0);
+  --foreground: var(--color-text-primary);
+  --primary: var(--color-accent-primary);
+  --primary-foreground: var(--color-accent-foreground);
+  --secondary: var(--color-neutral-2);
+  --secondary-foreground: var(--color-text-primary);
+  --accent: var(--color-accent-primary);
+  --accent-foreground: var(--color-accent-foreground);
+  --muted: var(--color-muted);
+  --muted-foreground: var(--color-muted-foreground);
+  --border: var(--color-outline-strong);
+  --border-soft: var(--color-outline-soft);
+  --surface-0: var(--color-neutral-0);
+  --surface-1: var(--color-neutral-1);
+  --surface-2: var(--color-neutral-2);
+  --surface-3: var(--color-neutral-3);
   --surface-window: var(--surface-0);
   --surface-raised: var(--surface-1);
   --surface-subtle: var(--surface-2);
-  --outline-soft: var(--border-soft);
-  --outline-strong: var(--border);
-  --text-primary: var(--foreground);
-  --text-secondary: var(--muted-foreground);
-  --input: 214.3 31.8% 91.4%;
-  --ring: 221.2 83.2% 53.3%;
+  --outline-soft: var(--color-outline-soft);
+  --outline-strong: var(--color-outline-strong);
+  --text-primary: var(--color-text-primary);
+  --text-secondary: var(--color-text-secondary);
+  --input: var(--color-outline-strong);
+  --ring: var(--color-accent-primary);
   --radius: 0.5rem;
   --font-family-base: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --font-size-title: 20px;
@@ -39,88 +54,50 @@
 }
 
 .dark {
-  --background: 222.2 84% 4.9%;
-  --foreground: 210 40% 98%;
-  --primary: 217.2 91.2% 59.8%;
-  --primary-foreground: 222.2 47.4% 11.2%;
-  --secondary: 217.2 32.6% 17.5%;
-  --secondary-foreground: 210 40% 98%;
-  --accent: 217.2 91.2% 59.8%;
-  --accent-foreground: 222.2 47.4% 11.2%;
-  --muted: 217.2 32.6% 17.5%;
-  --muted-foreground: 215 20.2% 65.1%;
-  --border: 217.2 32.6% 17.5%;
-  --border-soft: 217.2 28% 23%;
-  --surface-0: 225 16% 12%;
-  --surface-1: 225 18% 18%;
-  --surface-2: 225 20% 24%;
-  --surface-3: 225 25% 30%;
-  --surface-window: var(--surface-0);
-  --surface-raised: var(--surface-1);
-  --surface-subtle: var(--surface-2);
-  --outline-soft: var(--border-soft);
-  --outline-strong: var(--border);
-  --text-primary: var(--foreground);
-  --text-secondary: var(--muted-foreground);
-  --input: 217.2 32.6% 17.5%;
+  --color-neutral-0: 225 16% 12%;
+  --color-neutral-1: 225 18% 18%;
+  --color-neutral-2: 225 20% 24%;
+  --color-neutral-3: 225 25% 30%;
+  --color-text-primary: 210 40% 98%;
+  --color-text-secondary: 215 20.2% 65.1%;
+  --color-accent-primary: 217.2 91.2% 59.8%;
+  --color-accent-foreground: 222.2 47.4% 11.2%;
+  --color-outline-soft: 217.2 28% 23%;
+  --color-outline-strong: 217.2 32.6% 17.5%;
+  --color-muted: 217.2 32.6% 17.5%;
+  --color-muted-foreground: 215 20.2% 65.1%;
   --ring: 224.3 76.3% 48%;
 }
 
 html[data-platform='linux'] {
-  --background: 210 20% 97%;
-  --foreground: 218 15% 20%;
-  --primary: 216 92% 60%;
-  --primary-foreground: 210 40% 98%;
-  --secondary: 215 18% 92%;
-  --secondary-foreground: 218 15% 24%;
-  --accent: 216 92% 60%;
-  --accent-foreground: 210 40% 98%;
-  --muted: 215 16% 88%;
-  --muted-foreground: 218 12% 35%;
-  --border: 215 18% 85%;
-  --border-soft: 215 16% 88%;
-  --surface-0: 210 20% 97%;
-  --surface-1: 210 18% 94%;
-  --surface-2: 210 16% 91%;
-  --surface-3: 210 14% 88%;
-  --surface-window: var(--surface-0);
-  --surface-raised: 210 16% 93%;
-  --surface-subtle: 210 14% 90%;
-  --outline-soft: 210 15% 86%;
-  --outline-strong: 210 20% 52%;
-  --text-primary: var(--foreground);
-  --text-secondary: 218 12% 35%;
-  --input: 215 18% 85%;
-  --ring: 216 92% 60%;
+  --color-neutral-0: 210 20% 97%;
+  --color-neutral-1: 210 18% 94%;
+  --color-neutral-2: 210 16% 91%;
+  --color-neutral-3: 210 14% 88%;
+  --color-text-primary: 218 15% 20%;
+  --color-text-secondary: 218 12% 35%;
+  --color-accent-primary: 216 92% 60%;
+  --color-accent-foreground: 210 40% 98%;
+  --color-outline-soft: 210 15% 86%;
+  --color-outline-strong: 210 20% 52%;
+  --color-muted: 215 16% 88%;
+  --color-muted-foreground: 218 12% 35%;
   --font-family-base: 'Cantarell', 'Inter', 'Ubuntu', 'DejaVu Sans', sans-serif;
 }
 
 html[data-platform='linux'].dark {
-  --background: 220 15% 14%;
-  --foreground: 210 40% 98%;
-  --primary: 216 85% 66%;
-  --primary-foreground: 220 15% 14%;
-  --secondary: 220 12% 22%;
-  --secondary-foreground: 210 40% 98%;
-  --accent: 216 85% 66%;
-  --accent-foreground: 220 15% 14%;
-  --muted: 220 10% 26%;
-  --muted-foreground: 210 24% 70%;
-  --border: 220 12% 30%;
-  --border-soft: 220 10% 36%;
-  --surface-0: 220 15% 14%;
-  --surface-1: 220 14% 18%;
-  --surface-2: 220 12% 22%;
-  --surface-3: 220 10% 26%;
-  --surface-window: var(--surface-0);
-  --surface-raised: 220 13% 20%;
-  --surface-subtle: 220 11% 24%;
-  --outline-soft: 220 10% 32%;
-  --outline-strong: 220 18% 46%;
-  --text-primary: var(--foreground);
-  --text-secondary: 210 24% 70%;
-  --input: 220 12% 30%;
-  --ring: 216 85% 66%;
+  --color-neutral-0: 220 15% 14%;
+  --color-neutral-1: 220 14% 18%;
+  --color-neutral-2: 220 12% 22%;
+  --color-neutral-3: 220 10% 26%;
+  --color-text-primary: 210 40% 98%;
+  --color-text-secondary: 210 24% 70%;
+  --color-accent-primary: 216 85% 66%;
+  --color-accent-foreground: 220 15% 14%;
+  --color-outline-soft: 220 10% 32%;
+  --color-outline-strong: 220 18% 46%;
+  --color-muted: 220 10% 26%;
+  --color-muted-foreground: 210 24% 70%;
 }
 
 html[data-platform='macos'] {
