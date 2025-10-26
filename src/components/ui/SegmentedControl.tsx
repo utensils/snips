@@ -79,7 +79,7 @@ function SegmentedButton({
     .join(' ');
 
   return (
-    <button type="button" className={classes} onClick={onSelect} {...props}>
+    <button type="button" className={classes} onClick={onSelect} aria-pressed={active} {...props}>
       {icon ? <span className="text-[color:hsl(var(--text-secondary))]">{icon}</span> : null}
       {children}
     </button>

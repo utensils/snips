@@ -19,8 +19,8 @@ export function PreferenceCard({
   ...props
 }: PreferenceCardProps) {
   const headerClasses = 'flex items-start gap-3';
-  const titleClasses = 'text-[color:hsl(var(--text-primary))] text-base font-semibold leading-6';
-  const descriptionClasses = 'text-[color:hsl(var(--text-secondary))] text-sm leading-5';
+  const titleClasses = 'typography-heading text-[color:hsl(var(--text-primary))]';
+  const descriptionClasses = 'typography-body text-[color:hsl(var(--text-secondary))]';
 
   return (
     <Surface padding="lg" className={['flex flex-col gap-4', className].join(' ')} {...props}>

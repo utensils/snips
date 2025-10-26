@@ -48,3 +48,6 @@ export type { PreferenceCardProps } from './PreferenceCard';
 
 export { SegmentedControl } from './SegmentedControl';
 export type { SegmentedControlProps, SegmentedOption } from './SegmentedControl';
+
+export { ToolbarIconButton } from './ToolbarIconButton';
+export type { ToolbarIconButtonProps } from './ToolbarIconButton';

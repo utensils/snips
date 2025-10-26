@@ -1,9 +1,9 @@
 import { invoke } from '@tauri-apps/api/core';
 import { platform } from '@tauri-apps/plugin-os';
-import { type ReactElement, useEffect, useState } from 'react';
+import { type ReactElement, type ReactNode, useEffect, useState } from 'react';
 
+import { PreferenceCard, SegmentedControl, type SegmentedOption } from '@/components/ui';
 import { Button } from '@/components/ui/Button';
-import { Card } from '@/components/ui/Card';
 import { Checkbox } from '@/components/ui/Checkbox';
 import { Spinner } from '@/components/ui/Spinner';
 import { getSettings, updateSettings } from '@/lib/api';
@@ -29,6 +29,12 @@ const WINDOW_CHROME_OPTIONS: Array<{
     label: 'Frameless + Shadow',
     description: 'Frameless window with Snips-managed drop shadow (macOS-style).',
   },
+];
+
+const THEME_OPTIONS: SegmentedOption[] = [
+  { id: 'light', label: 'Light' },
+  { id: 'dark', label: 'Dark' },
+  { id: 'system', label: 'System' },
 ];
 
 const HYPRLAND_WINDOW_RULES = `windowrulev2 = float, title:^(Quick Add Snippet)$
@@ -229,12 +235,17 @@ export function GeneralTab(): ReactElement {
 
   if (error && !settings) {
     return (
-      <Card className="p-6">
-        <div className="text-center">
-          <p className="text-red-600 dark:text-red-400 mb-4">{error}</p>
-          <Button onClick={loadSettings}>Retry</Button>
+      <PreferenceCard
+        title="Unable to load settings"
+        description="Something went wrong while loading your preferences."
+      >
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm text-red-500 dark:text-red-300">{error}</p>
+          <Button variant="primary" onClick={loadSettings} disabled={isLoading}>
+            Retry
+          </Button>
         </div>
-      </Card>
+      </PreferenceCard>
     );
   }
 
@@ -252,244 +263,156 @@ export function GeneralTab(): ReactElement {
     currentWindowManagerOverride ?? quickWindowPreferences?.float_on_tiling ?? true;
 
   return (
-    <div className="space-y-6">
-      {/* Page Header */}
-      <div>
-        <h2 className="mb-2 text-xl font-semibold text-foreground">General Settings</h2>
-        <p className="text-sm text-muted-foreground">Customize your application preferences</p>
+    <div className="space-y-6 text-[color:hsl(var(--text-primary))]">
+      <header className="space-y-1">
+        <h2 className="typography-title text-[color:hsl(var(--text-primary))]">General Settings</h2>
+        <p className="typography-body text-[color:hsl(var(--text-secondary))]">
+          Customize your application preferences
+        </p>
+      </header>
+
+      <div className="min-h-[48px] space-y-2">
+        {error ? <StatusBanner variant="error">{error}</StatusBanner> : null}
+        {saveSuccess ? (
+          <StatusBanner variant="success">Settings saved successfully</StatusBanner>
+        ) : null}
       </div>
 
-      {/* Status Messages - Fixed height container prevents layout shift */}
-      <div className="min-h-[60px]">
-        {error && (
-          <Card className="p-4 bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 transition-opacity duration-300">
-            <p className="text-red-600 dark:text-red-400">{error}</p>
-          </Card>
-        )}
-        {saveSuccess && (
-          <Card className="p-4 bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800 transition-opacity duration-300">
-            <p className="text-green-600 dark:text-green-400">Settings saved successfully</p>
-          </Card>
-        )}
-      </div>
+      <PreferenceCard title="Appearance" description="Choose how the application looks">
+        <div className="space-y-2">
+          <span className="typography-caption text-[color:hsl(var(--text-secondary))]">Theme</span>
+          <SegmentedControl
+            options={THEME_OPTIONS.map((option) => ({
+              ...option,
+              disabled: isSaving,
+            }))}
+            value={settings.theme}
+            onChange={(value) => handleThemeChange(value as Theme)}
+            ariaLabel="Theme preference"
+          />
+        </div>
+      </PreferenceCard>
 
-      {/* Theme Settings */}
-      <Card className="p-6">
-        <div className="space-y-4">
-          <div>
-            <h3 className="mb-1 text-lg font-medium text-foreground">Appearance</h3>
-            <p className="text-sm text-muted-foreground">Choose how the application looks</p>
-          </div>
+      <PreferenceCard
+        title="Window Chrome"
+        description={`Control window decorations on ${currentPlatform || 'your'} system.`}
+      >
+        <SegmentedControl
+          options={WINDOW_CHROME_OPTIONS.map((option) => ({
+            id: option.value,
+            label: option.label,
+            description: option.description,
+            disabled: isSaving,
+          }))}
+          value={currentChrome}
+          onChange={(value) => handleWindowChromeChange(value as WindowChromePreference)}
+          ariaLabel="Window chrome preference"
+        />
 
-          <div className="space-y-3">
-            <label className="block">
-              <span className="mb-2 block text-sm font-medium text-foreground">Theme</span>
-              <div className="grid grid-cols-3 gap-3">
-                <ThemeOption
-                  label="Light"
-                  value="light"
-                  currentTheme={settings.theme}
-                  onSelect={handleThemeChange}
-                  disabled={isSaving}
-                />
-                <ThemeOption
-                  label="Dark"
-                  value="dark"
-                  currentTheme={settings.theme}
-                  onSelect={handleThemeChange}
-                  disabled={isSaving}
-                />
-                <ThemeOption
-                  label="System"
-                  value="system"
-                  currentTheme={settings.theme}
-                  onSelect={handleThemeChange}
-                  disabled={isSaving}
-                />
+        {currentPlatform === 'linux' && (
+          <div className="rounded-[9px] border border-[hsl(var(--outline-soft))] bg-[hsl(var(--surface-subtle))] p-4">
+            <label
+              htmlFor="keep-quick-windows-floating"
+              className="flex cursor-pointer items-start gap-3"
+            >
+              <Checkbox
+                id="keep-quick-windows-floating"
+                checked={effectiveQuickWindowFloating}
+                onChange={(event) => handleQuickWindowFloatingChange(event.target.checked)}
+                disabled={isSaving}
+                aria-describedby="keep-quick-windows-floating-description"
+              />
+              <div className="space-y-1">
+                <p className="typography-body font-medium text-[color:hsl(var(--text-primary))]">
+                  Keep quick windows floating
+                </p>
+                <p
+                  id="keep-quick-windows-floating-description"
+                  className="typography-caption text-[color:hsl(var(--text-secondary))]"
+                >
+                  Search and Quick Add stay above tiling window managers (Hyprland, Sway, River).
+                  {currentWindowManager && currentWindowManager !== 'other' && (
+                    <span> This preference currently applies to {currentWindowManager}.</span>
+                  )}{' '}
+                  Disable if you prefer them to tile with the rest of your workspace.
+                </p>
               </div>
             </label>
           </div>
-        </div>
-      </Card>
+        )}
+      </PreferenceCard>
 
-      <Card className="p-6">
-        <div className="space-y-4">
-          <div>
-            <h3 className="mb-1 text-lg font-medium text-foreground">Window Chrome</h3>
-            <p className="text-sm text-muted-foreground">
-              Control window decorations on {currentPlatform || 'your'} system.
+      {currentPlatform !== 'linux' && (
+        <PreferenceCard title="Startup" description="Configure application startup behavior">
+          <div className="space-y-2">
+            <label className="flex items-center gap-3">
+              <Checkbox checked readOnly disabled className="pointer-events-none opacity-60" />
+              <span className="typography-body text-[color:hsl(var(--text-secondary))]">
+                Launch at login (configured via system settings)
+              </span>
+            </label>
+            <p className="typography-caption text-[color:hsl(var(--text-secondary))]">
+              {currentPlatform === 'macos'
+                ? 'Open System Settings → General → Login Items to manage Snips.'
+                : 'Open Windows Settings → Apps → Startup to manage Snips.'}
             </p>
           </div>
-
-          <div className="grid gap-3 md:grid-cols-3">
-            {WINDOW_CHROME_OPTIONS.map((option) => {
-              const isSelected = currentChrome === option.value;
-              return (
-                <button
-                  key={option.value}
-                  type="button"
-                  onClick={() => handleWindowChromeChange(option.value)}
-                  disabled={isSaving}
-                  className={`rounded-xl border p-4 text-left transition-colors duration-150 supports-[backdrop-filter]:backdrop-blur-sm ${
-                    isSelected
-                      ? 'border-accent bg-accent/15 shadow-sm'
-                      : 'border-border/60 bg-surface-0/85 hover:border-accent/60'
-                  }`}
-                >
-                  <span className="font-medium text-foreground">{option.label}</span>
-                  <p className="mt-1 text-sm text-muted-foreground">{option.description}</p>
-                </button>
-              );
-            })}
-          </div>
-
-          {currentPlatform === 'linux' && (
-            <div className="rounded-xl border border-border/60 bg-surface-0/85 p-4 supports-[backdrop-filter]:backdrop-blur-sm">
-              <label
-                htmlFor="keep-quick-windows-floating"
-                className="flex items-start gap-3 cursor-pointer"
-              >
-                <Checkbox
-                  id="keep-quick-windows-floating"
-                  checked={effectiveQuickWindowFloating}
-                  onChange={(event) => handleQuickWindowFloatingChange(event.target.checked)}
-                  disabled={isSaving}
-                  aria-describedby="keep-quick-windows-floating-description"
-                />
-                <div className="space-y-1">
-                  <p className="text-sm font-medium text-foreground">Keep quick windows floating</p>
-                  <p
-                    id="keep-quick-windows-floating-description"
-                    className="text-xs text-muted-foreground"
-                  >
-                    Search and Quick Add stay above tiling window managers (Hyprland, Sway, River).
-                    {currentWindowManager && currentWindowManager !== 'other' && (
-                      <span> This preference currently applies to {currentWindowManager}.</span>
-                    )}{' '}
-                    Disable if you prefer them to tile with the rest of your workspace.
-                  </p>
-                </div>
-              </label>
-            </div>
-          )}
-        </div>
-      </Card>
-
-      {/* Hyprland guidance for Linux users */}
-      {currentPlatform === 'linux' && (
-        <Card className="p-6">
-          <div className="space-y-4">
-            <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
-              <div>
-                <h3 className="mb-1 text-lg font-medium text-foreground">Hyprland Integration</h3>
-                <p className="text-sm text-muted-foreground">
-                  Apply window rules to keep Snips floating and centered when using Hyprland.
-                </p>
-              </div>
-              <div className="flex items-center gap-2">
-                <a
-                  href="https://wiki.hyprland.org/Configuring/Window-Rules/"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-xs font-medium text-accent hover:underline"
-                  title="Open Hyprland window rule documentation"
-                >
-                  Hyprland docs
-                </a>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleCopyHyprlandRules}
-                  title="Copy Hyprland window rules"
-                  className="border border-border/40 px-3"
-                >
-                  {copySuccess ? 'Copied!' : 'Copy rules'}
-                </Button>
-              </div>
-            </div>
-
-            <pre className="rounded-xl border border-border/60 bg-surface-0/85 p-4 text-xs leading-relaxed text-foreground supports-[backdrop-filter]:backdrop-blur-sm">
-              {HYPRLAND_WINDOW_RULES}
-            </pre>
-
-            <p className="text-xs text-muted-foreground">
-              Snips now uses native window chrome on Linux; adjust these rules if you prefer tiling
-              behaviour instead.
-            </p>
-          </div>
-        </Card>
+        </PreferenceCard>
       )}
 
-      {/* Startup Behavior - macOS/Windows only */}
-      {currentPlatform !== 'linux' && (
-        <Card className="p-6">
-          <div className="space-y-4">
-            <div>
-              <h3 className="mb-1 text-lg font-medium text-foreground">Startup</h3>
-              <p className="text-sm text-muted-foreground">
-                Configure application startup behavior
-              </p>
+      {currentPlatform === 'linux' && (
+        <PreferenceCard
+          title="Hyprland Integration"
+          description="Apply window rules to keep Snips floating and centered when using Hyprland."
+          actions={
+            <div className="flex items-center gap-3">
+              <a
+                href="https://wiki.hyprland.org/Configuring/Window-Rules/"
+                target="_blank"
+                rel="noreferrer"
+                className="text-sm font-medium text-[color:hsl(var(--accent))] hover:underline"
+                title="Open Hyprland window rule documentation"
+              >
+                Hyprland docs
+              </a>
+              <Button
+                variant="tonal"
+                size="sm"
+                onClick={handleCopyHyprlandRules}
+                title="Copy Hyprland window rules"
+              >
+                {copySuccess ? 'Copied!' : 'Copy rules'}
+              </Button>
             </div>
-
-            <div className="space-y-3">
-              <label className="flex items-center space-x-3">
-                <input
-                  type="checkbox"
-                  className="w-4 h-4 text-blue-600 rounded border-gray-300 dark:border-gray-600 focus:ring-blue-500 dark:focus:ring-blue-400 dark:bg-gray-700"
-                  defaultChecked={true}
-                  disabled
-                />
-                <span className="text-sm text-foreground">Launch at login</span>
-              </label>
-              <p className="ml-7 text-xs text-muted-foreground">
-                {currentPlatform === 'macos'
-                  ? 'Configure this in System Preferences → Users & Groups → Login Items'
-                  : 'Configure this in Windows Settings → Apps → Startup'}
-              </p>
-            </div>
-          </div>
-        </Card>
+          }
+        >
+          <pre className="rounded-[9px] border border-[hsl(var(--outline-soft))] bg-[hsl(var(--surface-subtle))] p-4 text-xs leading-relaxed">
+            {HYPRLAND_WINDOW_RULES}
+          </pre>
+          <p className="typography-caption text-[color:hsl(var(--text-secondary))]">
+            Snips uses native window chrome on Linux; adjust these rules if you prefer tiling
+            behaviour instead.
+          </p>
+        </PreferenceCard>
       )}
     </div>
   );
 }
 
-/**
- * Theme selection option component
- */
-interface ThemeOptionProps {
-  label: string;
-  value: Theme;
-  currentTheme: Theme;
-  onSelect: (theme: Theme) => void;
-  disabled?: boolean;
+interface StatusBannerProps {
+  variant: 'success' | 'error';
+  children: ReactNode;
 }
 
-function ThemeOption({
-  label,
-  value,
-  currentTheme,
-  onSelect,
-  disabled = false,
-}: ThemeOptionProps): ReactElement {
-  const isSelected = currentTheme === value;
+function StatusBanner({ variant, children }: StatusBannerProps): ReactElement {
+  const variantClasses =
+    variant === 'success'
+      ? 'border border-[color-mix(in_srgb,hsl(var(--accent))_35%,transparent)] bg-[color-mix(in_srgb,hsl(var(--accent))_12%,hsl(var(--surface-subtle)))] text-[color:hsl(var(--accent))]'
+      : 'border border-red-400/40 bg-red-500/10 text-red-500 dark:text-red-300';
 
   return (
-    <button
-      onClick={() => onSelect(value)}
-      disabled={disabled}
-      className={`
-        rounded-xl border p-4 text-center transition-colors duration-150 supports-[backdrop-filter]:backdrop-blur-sm
-        ${
-          isSelected
-            ? 'border-accent bg-accent/15 shadow-sm'
-            : 'border-border/60 bg-surface-0/85 hover:border-accent/60'
-        }
-        ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
-      `}
-      aria-pressed={isSelected}
-    >
-      <div className="text-sm font-medium text-foreground">{label}</div>
-    </button>
+    <div className={`typography-body rounded-[9px] px-4 py-3 ${variantClasses}`} role="status">
+      {children}
+    </div>
   );
 }

@@ -1,6 +1,13 @@
 import { type ReactElement, useMemo, useState } from 'react';
 
-import { HeaderBar, Pane, SegmentedButtons, WindowScaffold } from '@/components/adwaita';
+import { WindowScaffold } from '@/components/adwaita';
+import {
+  ContentArea,
+  NavigationSidebar,
+  SegmentedControl,
+  Sidebar,
+  Toolbar,
+} from '@/components/ui';
 
 import { AnalyticsTab } from './AnalyticsTab';
 import { GeneralTab } from './GeneralTab';
@@ -40,118 +47,85 @@ export function SettingsWindow(): ReactElement {
   const renderContent = (): ReactElement => {
     switch (activeTab) {
       case 'general':
-        return (
-          <Pane padding="lg" className="space-y-6">
-            <GeneralTab />
-          </Pane>
-        );
+        return <GeneralTab />;
       case 'storage':
-        return (
-          <Pane padding="lg" className="space-y-6">
-            <StorageTab />
-          </Pane>
-        );
+        return <StorageTab />;
       case 'snippets':
-        return (
-          <Pane padding="lg" className="flex h-full flex-col">
-            <SnippetsTab />
-          </Pane>
-        );
+        return <SnippetsTab />;
       case 'analytics':
-        return (
-          <Pane padding="lg" className="space-y-6">
-            <AnalyticsTab />
-          </Pane>
-        );
+        return <AnalyticsTab />;
       case 'shortcuts':
-        return (
-          <Pane padding="lg" className="space-y-6">
-            <ShortcutsTab />
-          </Pane>
-        );
+        return <ShortcutsTab />;
       case 'advanced':
       default:
         return (
-          <Pane padding="lg" className="space-y-4">
+          <div className="space-y-4">
             <div className="space-y-2">
-              <h2 className="text-lg font-semibold text-foreground">Advanced settings</h2>
-              <p className="text-sm text-muted-foreground">
+              <h2 className="text-lg font-semibold text-[color:hsl(var(--text-primary))]">
+                Advanced settings
+              </h2>
+              <p className="text-sm text-[color:hsl(var(--text-secondary))]">
                 Additional controls are on the roadmap. In the meantime you can edit the
                 configuration file manually.
               </p>
             </div>
-          </Pane>
+          </div>
         );
     }
   };
+
+  const navigationItems = useMemo(
+    () =>
+      TAB_DEFINITIONS.map((tab) => ({
+        id: tab.id,
+        label: tab.label,
+        active: tab.id === activeTab,
+      })),
+    [activeTab]
+  );
 
   return (
     <WindowScaffold
       size="wide"
       fullHeight
-      contentClassName="flex h-full flex-col gap-4 text-foreground"
+      contentClassName="flex h-full flex-col gap-0 text-[color:hsl(var(--text-primary))]"
     >
-      <HeaderBar title="Settings" subtitle={activeTabDefinition?.label} />
+      <Toolbar className="rounded-t-[12px]">
+        <div className="flex flex-col">
+          <span className="typography-caption font-semibold uppercase tracking-[0.18em] text-[color:hsl(var(--text-secondary))]">
+            Settings
+          </span>
+          <span className="typography-heading text-[color:hsl(var(--text-primary))]">
+            {activeTabDefinition?.label ?? 'General'}
+          </span>
+        </div>
+      </Toolbar>
 
-      <div className="flex flex-1 gap-4 overflow-hidden rounded-3xl border border-border-soft bg-surface-1/85 p-4 shadow-inner shadow-black/5 supports-[backdrop-filter]:backdrop-blur-md md:p-6">
-        <aside className="hidden w-64 shrink-0 md:flex">
-          <Pane padding="sm" className="h-full overflow-y-auto">
-            <nav className="flex flex-col gap-1">
-              {TAB_DEFINITIONS.map((tab) => (
-                <TabButton
-                  key={tab.id}
-                  label={tab.label}
-                  isActive={activeTab === tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                />
-              ))}
-            </nav>
-          </Pane>
-        </aside>
+      <div className="flex flex-1 flex-col gap-4 px-3 pb-3 pt-0 md:flex-row md:gap-6 md:px-6 md:pb-6">
+        <div className="hidden md:block">
+          <Sidebar width="lg" className="h-full">
+            <NavigationSidebar
+              items={navigationItems}
+              onSelect={(id) => setActiveTab(id as SettingsTab)}
+            />
+          </Sidebar>
+        </div>
 
-        <section className="flex flex-1 flex-col gap-4 overflow-hidden">
+        <ContentArea className="flex flex-1 flex-col overflow-hidden" spacing="lg">
           <div className="md:hidden">
-            <SegmentedButtons
+            <SegmentedControl
               options={tabOptions}
               value={activeTab}
-              onChange={(value) => setActiveTab(value)}
+              onChange={(value) => setActiveTab(value as SettingsTab)}
               ariaLabel="Settings sections"
-              fullWidth
-              size="sm"
             />
           </div>
 
-          <div className="flex-1 overflow-y-auto pb-6">{renderContent()}</div>
-        </section>
+          <div className="flex-1 overflow-y-auto pr-1">
+            <div className="space-y-6">{renderContent()}</div>
+          </div>
+        </ContentArea>
       </div>
     </WindowScaffold>
-  );
-}
-
-/**
- * Tab navigation button component
- */
-interface TabButtonProps {
-  label: string;
-  isActive: boolean;
-  onClick: () => void;
-}
-
-function TabButton({ label, isActive, onClick }: TabButtonProps): ReactElement {
-  return (
-    <button
-      onClick={onClick}
-      className={`
-        w-full rounded-2xl px-3 py-2 text-left text-sm font-medium transition-colors
-        ${
-          isActive
-            ? 'bg-background text-foreground shadow-sm border border-border/60'
-            : 'text-muted-foreground hover:bg-muted/30'
-        }
-      `}
-      aria-current={isActive ? 'page' : undefined}
-    >
-      {label}
-    </button>
   );
 }
