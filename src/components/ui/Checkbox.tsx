@@ -12,46 +12,38 @@ export const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(
     const checkboxId = id ?? label?.toLowerCase().replace(/\s+/g, '-');
 
     const checkboxClasses = [
-      'h-4 w-4 rounded border-gray-300 dark:border-gray-600 text-blue-600 dark:text-blue-500',
-      'focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:ring-offset-2 dark:focus:ring-offset-gray-900',
-      'disabled:cursor-not-allowed disabled:opacity-50',
-      'transition-colors cursor-pointer',
-      'dark:bg-gray-700',
+      'h-4 w-4 rounded border border-[hsl(var(--outline-soft))] text-[hsl(var(--color-accent-primary))]',
+      'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--color-accent-primary))] focus-visible:ring-offset-2 focus-visible:ring-offset-[hsl(var(--surface-subtle))]',
+      'transition-colors cursor-pointer bg-[hsl(var(--surface-subtle))]',
+      disabled ? 'cursor-not-allowed opacity-60' : '',
       className,
     ]
       .filter(Boolean)
       .join(' ');
 
+    const inputElement = (
+      <input
+        ref={ref}
+        type="checkbox"
+        id={checkboxId}
+        className={checkboxClasses}
+        disabled={disabled}
+        {...props}
+      />
+    );
+
     if (!label) {
-      return (
-        <input
-          ref={ref}
-          type="checkbox"
-          id={checkboxId}
-          className={checkboxClasses}
-          disabled={disabled}
-          {...props}
-        />
-      );
+      return inputElement;
     }
 
     return (
-      <div className="flex items-center">
-        <input
-          ref={ref}
-          type="checkbox"
-          id={checkboxId}
-          className={checkboxClasses}
-          disabled={disabled}
-          {...props}
-        />
-        <label
-          htmlFor={checkboxId}
-          className="ml-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer select-none"
-        >
-          {label}
-        </label>
-      </div>
+      <label
+        htmlFor={checkboxId}
+        className="flex cursor-pointer items-center gap-2 text-sm text-[color:hsl(var(--text-secondary))] select-none"
+      >
+        {inputElement}
+        <span>{label}</span>
+      </label>
     );
   }
 );

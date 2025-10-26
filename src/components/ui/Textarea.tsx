@@ -30,21 +30,26 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
   ) => {
     const textareaId = id ?? label?.toLowerCase().replace(/\s+/g, '-');
 
-    const resizeClasses = {
+    const resizeClasses: Record<Required<TextareaProps>['resize'], string> = {
       none: 'resize-none',
       vertical: 'resize-y',
       horizontal: 'resize-x',
       both: 'resize',
     };
 
+    const baseClasses =
+      'px-3 py-2 rounded-md border transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--color-accent-primary))] focus-visible:ring-offset-2 focus-visible:ring-offset-[hsl(var(--surface-raised))] placeholder:text-[color:hsl(var(--text-secondary))]';
+    const stateClasses = error
+      ? 'border-red-500 focus-visible:ring-red-500 text-red-600'
+      : 'border-[hsl(var(--outline-soft))] hover:border-[hsl(var(--outline-strong))] text-[color:hsl(var(--text-primary))]';
+    const surfaceClasses = disabled
+      ? 'bg-[color-mix(in_srgb,hsl(var(--surface-subtle))_70%,transparent)] cursor-not-allowed opacity-70'
+      : 'bg-[hsl(var(--surface-subtle))]';
+
     const textareaClasses = [
-      'px-3 py-2 border rounded-lg transition-colors',
-      'bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100',
-      'focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent',
-      'disabled:bg-gray-100 dark:disabled:bg-gray-700 disabled:cursor-not-allowed disabled:text-gray-500 dark:disabled:text-gray-400',
-      error
-        ? 'border-red-500 dark:border-red-600 focus:ring-red-500 dark:focus:ring-red-400'
-        : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500',
+      baseClasses,
+      stateClasses,
+      surfaceClasses,
       resizeClasses[resize],
       fullWidth ? 'w-full' : '',
       className,
@@ -57,11 +62,11 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
         {label && (
           <label
             htmlFor={textareaId}
-            className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+            className="mb-1 block text-sm font-medium text-[color:hsl(var(--text-secondary))]"
           >
             {label}
             {required && (
-              <span className="text-red-500 dark:text-red-400 ml-1" aria-label="required">
+              <span className="ml-1 text-red-500" aria-label="required">
                 *
               </span>
             )}
@@ -80,20 +85,18 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
           }
           {...props}
         />
-        {error && (
-          <p
-            id={`${textareaId}-error`}
-            className="mt-1 text-sm text-red-600 dark:text-red-400"
-            role="alert"
-          >
+        {error ? (
+          <p id={`${textareaId}-error`} className="mt-1 text-sm text-red-500" role="alert">
             {error}
           </p>
-        )}
-        {!error && helperText && (
-          <p id={`${textareaId}-helper`} className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+        ) : helperText ? (
+          <p
+            id={`${textareaId}-helper`}
+            className="mt-1 text-sm text-[color:hsl(var(--text-secondary))]"
+          >
             {helperText}
           </p>
-        )}
+        ) : null}
       </div>
     );
   }

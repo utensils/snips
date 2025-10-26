@@ -269,7 +269,13 @@ fn window_chrome_preference() -> WindowChrome {
     }
     #[cfg(target_os = "linux")]
     {
-        guard.linux
+        let preference = guard.linux;
+        match (preference, current_window_manager()) {
+            (WindowChrome::Native, WindowManager::Hyprland)
+            | (WindowChrome::Native, WindowManager::Sway)
+            | (WindowChrome::Native, WindowManager::River) => WindowChrome::Frameless,
+            _ => preference,
+        }
     }
     #[cfg(target_os = "windows")]
     {
@@ -425,8 +431,26 @@ fn apply_window_chrome<'a, R: tauri::Runtime, M: Manager<R>>(
 ) -> tauri::WebviewWindowBuilder<'a, R, M> {
     match window_chrome_preference() {
         WindowChrome::Native => builder.decorations(true).transparent(false).shadow(false),
-        WindowChrome::Frameless => builder.decorations(false).transparent(true).shadow(false),
-        WindowChrome::FramelessShadow => builder.decorations(false).transparent(true).shadow(true),
+        WindowChrome::Frameless => {
+            #[cfg(target_os = "linux")]
+            {
+                builder.decorations(false).transparent(false).shadow(false)
+            }
+            #[cfg(not(target_os = "linux"))]
+            {
+                builder.decorations(false).transparent(true).shadow(false)
+            }
+        }
+        WindowChrome::FramelessShadow => {
+            #[cfg(target_os = "linux")]
+            {
+                builder.decorations(false).transparent(false).shadow(true)
+            }
+            #[cfg(not(target_os = "linux"))]
+            {
+                builder.decorations(false).transparent(true).shadow(true)
+            }
+        }
     }
 }
 
@@ -542,8 +566,7 @@ pub fn get_or_create_quick_add_window<R: Runtime>(
     )
     .title("Quick Add Snippet")
     .inner_size(650.0, 700.0)
-    .center()
-    .decorations(true);
+    .center();
 
     let builder = apply_platform_window_profile(builder, WindowProfile::Dialog);
 

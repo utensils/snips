@@ -60,7 +60,7 @@ impl Default for WindowChromeSettings {
     fn default() -> Self {
         Self {
             macos: WindowChrome::FramelessShadow,
-            linux: WindowChrome::Native,
+            linux: WindowChrome::Frameless,
             windows: WindowChrome::Native,
         }
     }
