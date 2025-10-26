@@ -5,6 +5,7 @@ pub mod utils;
 
 use services::backup_scheduler::{BackupScheduler, BackupSchedulerState};
 use services::database::{self, DbPool};
+use services::window::QUICK_ADD_WINDOW_LABEL;
 use std::sync::Arc;
 use tauri::{Emitter, Manager};
 use tokio::sync::{Mutex, RwLock};
@@ -78,6 +79,17 @@ pub fn run() {
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .plugin(tauri_plugin_os::init())
         .plugin(database::init_database().build())
+        .on_window_event(|window, event| {
+            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                if window.label() == QUICK_ADD_WINDOW_LABEL {
+                    api.prevent_close();
+                    let app_handle = window.app_handle();
+                    if let Err(err) = services::window::hide_quick_add_window(app_handle) {
+                        eprintln!("Failed to hide quick add window on close: {}", err);
+                    }
+                }
+            }
+        })
         .setup(|app| {
             // Initialize SQLx database pool for backend queries
             let handle = app.handle().clone();
