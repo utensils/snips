@@ -1,5 +1,6 @@
 import { type ReactElement, useEffect, useState } from 'react';
 
+import { ChevronLeftSymbolic, ChevronRightSymbolic } from '@/components/adwaita';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Spinner } from '@/components/ui/Spinner';
@@ -531,16 +532,8 @@ function MostUsedSnippetRow({
           {usageCount} {usageCount === 1 ? 'use' : 'uses'}
         </span>
         {onClick && (
-          <span className="text-gray-400 dark:text-gray-500">
-            <svg
-              className="w-5 h-5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-            </svg>
+          <span className="text-muted-foreground">
+            <ChevronRightSymbolic className="h-5 w-5" />
           </span>
         )}
       </div>
@@ -688,20 +681,7 @@ function SnippetDrillDown({ snippetDetails, onBack }: SnippetDrillDownProps): Re
       {/* Header with back button */}
       <div className="flex items-center space-x-4">
         <Button onClick={onBack} variant="secondary" aria-label="Go back">
-          <svg
-            className="w-5 h-5"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M15 19l-7-7 7-7"
-            />
-          </svg>
+          <ChevronLeftSymbolic className="h-5 w-5" />
         </Button>
         <div>
           <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
