@@ -19,11 +19,11 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 
 const variantClasses: Record<Exclude<ButtonVariant, 'secondary'>, string> = {
   primary:
-    'bg-[hsl(var(--accent))] text-[color:hsl(var(--accent-foreground))] shadow-sm hover:bg-[color-mix(in_srgb,hsl(var(--accent))_85%,black)] focus-visible:ring-[hsl(var(--accent))] disabled:opacity-40 disabled:pointer-events-none',
+    'bg-[hsl(var(--color-accent-primary))] text-[hsl(var(--color-accent-foreground))] shadow-[0_8px_20px_rgba(0,0,0,0.18)] hover:bg-[color-mix(in_srgb,hsl(var(--color-accent-primary))_92%,hsl(var(--color-accent-foreground)))] focus-visible:ring-[hsl(var(--color-accent-primary))] disabled:opacity-40 disabled:pointer-events-none',
   tonal:
-    'bg-[color-mix(in_srgb,hsl(var(--accent))_18%,hsl(var(--surface-raised)))] text-[color:hsl(var(--text-primary))] border border-[hsl(var(--outline-soft))] hover:bg-[color-mix(in_srgb,hsl(var(--accent))_26%,hsl(var(--surface-raised)))] focus-visible:ring-[hsl(var(--accent))] disabled:opacity-40 disabled:pointer-events-none',
+    'bg-[hsl(var(--surface-subtle))] text-[color:hsl(var(--text-primary))] border border-[hsl(var(--outline-soft))] hover:bg-[color-mix(in_srgb,hsl(var(--surface-subtle))_80%,hsl(var(--surface-raised)))] focus-visible:ring-[hsl(var(--color-accent-primary))] disabled:opacity-40 disabled:pointer-events-none',
   ghost:
-    'bg-transparent text-[color:hsl(var(--text-secondary))] hover:bg-[color-mix(in_srgb,hsl(var(--accent))_10%,hsl(var(--surface-subtle)))] focus-visible:ring-[hsl(var(--accent))] disabled:opacity-40 disabled:pointer-events-none',
+    'bg-transparent text-[color:hsl(var(--text-secondary))] hover:bg-[color-mix(in_srgb,hsl(var(--surface-subtle))_70%,transparent)] focus-visible:ring-[hsl(var(--color-accent-primary))] disabled:opacity-40 disabled:pointer-events-none',
   danger:
     'bg-red-600 text-white hover:bg-red-700 focus-visible:ring-red-500 disabled:opacity-40 disabled:pointer-events-none',
 };

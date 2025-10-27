@@ -34,7 +34,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
       : 'border-[hsl(var(--outline-soft))] hover:border-[hsl(var(--outline-strong))] text-[color:hsl(var(--text-primary))]';
     const surfaceClasses = disabled
       ? 'bg-[color-mix(in_srgb,hsl(var(--surface-subtle))_70%,transparent)] cursor-not-allowed opacity-70'
-      : 'bg-[hsl(var(--surface-subtle))]';
+      : 'bg-[color-mix(in_srgb,hsl(var(--surface-subtle))_85%,hsl(var(--surface-raised)))]';
 
     const inputClasses = [
       baseClasses,
