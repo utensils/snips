@@ -334,7 +334,7 @@ export function SearchOverlay(): ReactElement {
       contentClassName="flex h-full flex-col gap-3 motion-safe:animate-fade-in-scale"
     >
       <Toolbar
-        className="rounded-t-[16px] flex-col gap-3 border border-transparent bg-[hsl(var(--surface-raised))] md:flex-row md:items-center md:justify-between"
+        className="rounded-t-[16px] border border-transparent bg-[color-mix(in_srgb,hsl(var(--surface-raised))_94%,transparent)]/95 backdrop-blur-md shadow-[0_16px_36px_rgba(0,0,0,0.14)] dark:shadow-[0_18px_40px_rgba(0,0,0,0.42)] flex-col gap-3 md:flex-row md:items-center md:justify-between"
         data-tauri-drag-region
       >
         <div className="flex w-full items-center gap-3">
@@ -350,16 +350,23 @@ export function SearchOverlay(): ReactElement {
           />
         </div>
         <ToolbarIconButton aria-label="Close search" onClick={handleClose}>
-          <CloseSymbolic size={14} />
+          <CloseSymbolic size={12} />
         </ToolbarIconButton>
       </Toolbar>
 
-      <ContentArea className="flex flex-1 flex-col overflow-hidden" spacing="md">
+      <ContentArea
+        className="flex flex-1 flex-col overflow-hidden bg-[color-mix(in_srgb,hsl(var(--surface-raised))_90%,transparent)]"
+        spacing="md"
+        outline="none"
+        elevation="md"
+      >
         {hasResults && (
           <Surface
             level="subtle"
             padding="md"
-            className="flex flex-col gap-2 text-[color:hsl(var(--text-primary))] md:flex-row md:items-center md:justify-between"
+            outline="none"
+            elevation="none"
+            className="flex flex-col gap-2 bg-[color-mix(in_srgb,hsl(var(--surface-subtle))_92%,transparent)] text-[color:hsl(var(--text-primary))] md:flex-row md:items-center md:justify-between"
           >
             <span className="typography-body text-[color:hsl(var(--text-secondary))]">
               {selectedSnippets.size > 0
@@ -384,7 +391,13 @@ export function SearchOverlay(): ReactElement {
           </Surface>
         )}
 
-        <Surface level="raised" padding="none" className="flex flex-1 flex-col overflow-hidden">
+        <Surface
+          level="raised"
+          padding="none"
+          outline="none"
+          elevation="md"
+          className="flex flex-1 flex-col overflow-hidden bg-[color-mix(in_srgb,hsl(var(--surface-raised))_95%,transparent)]"
+        >
           {isSearching && (
             <div className="flex h-32 items-center justify-center text-[color:hsl(var(--text-secondary))]">
               <Spinner size="lg" />

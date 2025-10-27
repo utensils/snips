@@ -290,7 +290,12 @@ export function QuickAddDialog({
   const renderBody = (): ReactElement => {
     if (isLoading) {
       return (
-        <Surface padding="lg" className="flex min-h-[240px] items-center justify-center">
+        <Surface
+          padding="lg"
+          outline="none"
+          elevation="md"
+          className="flex min-h-[240px] items-center justify-center bg-[color-mix(in_srgb,hsl(var(--surface-raised))_88%,transparent)]"
+        >
           <div className="flex flex-col items-center gap-3 text-[color:hsl(var(--text-secondary))]">
             <Spinner />
             <span className="typography-body">Capturing selected text…</span>
@@ -301,7 +306,12 @@ export function QuickAddDialog({
 
     if (error && !selectedText) {
       return (
-        <Surface padding="lg" className="space-y-4">
+        <Surface
+          padding="lg"
+          outline="soft"
+          elevation="sm"
+          className="space-y-4 bg-[color-mix(in_srgb,hsl(var(--surface-raised))_96%,transparent)]"
+        >
           <div className="space-y-1">
             <h2 className="typography-heading text-red-500 dark:text-red-300">
               Something went wrong
@@ -318,7 +328,12 @@ export function QuickAddDialog({
     }
 
     return (
-      <Surface padding="lg" className="space-y-5">
+      <Surface
+        padding="lg"
+        outline="none"
+        elevation="md"
+        className="space-y-5 bg-[color-mix(in_srgb,hsl(var(--surface-raised))_94%,transparent)]"
+      >
         <form onSubmit={handleSubmit} className="space-y-5">
           {/* Selected text (editable) */}
           <Textarea
@@ -426,7 +441,7 @@ export function QuickAddDialog({
 
   return (
     <WindowScaffold size="medium" contentClassName="flex h-full flex-col gap-3">
-      <Toolbar className="rounded-t-[12px] items-center justify-between">
+      <Toolbar className="rounded-t-[16px] border-b border-transparent bg-[color-mix(in_srgb,hsl(var(--surface-raised))_95%,transparent)]/95 backdrop-blur-md shadow-[0_12px_32px_rgba(0,0,0,0.12)] dark:shadow-[0_16px_36px_rgba(0,0,0,0.38)] items-center justify-between">
         <div className="flex flex-col">
           <span className="typography-caption uppercase tracking-[0.18em] text-[color:hsl(var(--text-secondary))]">
             Quick Add
@@ -440,7 +455,7 @@ export function QuickAddDialog({
             </span>
           ) : null}
           <ToolbarIconButton aria-label="Close quick add" onClick={handleCancel}>
-            <CloseSymbolic size={14} />
+            <CloseSymbolic size={12} />
           </ToolbarIconButton>
         </div>
       </Toolbar>
@@ -449,7 +464,9 @@ export function QuickAddDialog({
         <Surface
           level="subtle"
           padding="md"
-          className="border border-amber-500/30 bg-amber-500/10 text-[color:hsl(var(--text-primary))]"
+          outline="soft"
+          elevation="none"
+          className="border border-amber-500/25 bg-amber-500/12 text-[color:hsl(var(--text-primary))]"
         >
           <span className="typography-body text-amber-900 dark:text-amber-200">
             {clipboardWarning}
