@@ -110,11 +110,6 @@ function SearchResultItem({
             >
               {result.name}
             </h3>
-            {result.usage_count > 0 && (
-              <Badge variant="secondary" size="sm">
-                {result.usage_count}x
-              </Badge>
-            )}
             {result.tags && result.tags.length > 0 && (
               <>
                 {result.tags.map((tag) => (
@@ -387,7 +382,7 @@ export function SearchOverlay(): ReactElement {
                 Clear
               </Button>
               <Button size="sm" onClick={handleCopy}>
-                Copy All
+                Copy Snippet{selectedSnippets.size === 1 ? '' : 's'}
               </Button>
             </div>
           </div>
