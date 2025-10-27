@@ -58,13 +58,13 @@ impl From<tauri::Error> for ShortcutError {
 ///
 /// # Examples
 ///
-/// ```rust
-/// use tauri::AppHandle;
-///
-/// fn setup(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
-///     register_all_shortcuts(app)?;
-///     Ok(())
-/// }
+/// ```rust,no_run
+/// # use snips_lib::services::shortcuts::register_all_shortcuts;
+/// # use tauri::AppHandle;
+/// # fn example(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
+/// register_all_shortcuts(app)?;
+/// # Ok(())
+/// # }
 /// ```
 pub fn register_all_shortcuts(app: &AppHandle) -> Result<(), ShortcutError> {
     // Register search shortcut
@@ -292,10 +292,15 @@ pub fn register_quick_add_shortcut(app: &AppHandle) -> Result<(), ShortcutError>
 ///
 /// # Examples
 ///
-/// ```rust
-/// register_custom_shortcut(&app, "Cmd+Shift+K", |app| {
+/// ```rust,no_run
+/// # use snips_lib::services::shortcuts::register_custom_shortcut;
+/// # use tauri::AppHandle;
+/// # fn example(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
+/// register_custom_shortcut(app, "Cmd+Shift+K", |app| {
 ///     println!("Custom shortcut triggered!");
 /// })?;
+/// # Ok(())
+/// # }
 /// ```
 pub fn register_custom_shortcut<F>(
     app: &AppHandle,

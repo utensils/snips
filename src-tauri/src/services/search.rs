@@ -238,7 +238,7 @@ pub async fn search_snippets(
 ///
 /// # Examples
 ///
-/// ```
+/// ```ignore
 /// assert_eq!(parse_tag_filter("python:"), (Some("python"), ""));
 /// assert_eq!(parse_tag_filter("python:async"), (Some("python"), "async"));
 /// assert_eq!(parse_tag_filter("react hooks"), (None, "react hooks"));

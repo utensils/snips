@@ -18,8 +18,13 @@ use std::time::{SystemTime, UNIX_EPOCH};
 ///
 /// # Examples
 ///
-/// ```rust
-/// record_usage(&pool, 42).await?;
+/// ```rust,no_run
+/// # use snips_lib::services::analytics::record_usage;
+/// # use sqlx::SqlitePool;
+/// # async fn example(pool: &SqlitePool) -> Result<(), Box<dyn std::error::Error>> {
+/// record_usage(pool, 42).await?;
+/// # Ok(())
+/// # }
 /// ```
 pub async fn record_usage(pool: &SqlitePool, snippet_id: i64) -> Result<(), AppError> {
     let now = SystemTime::now()
@@ -54,9 +59,14 @@ pub async fn record_usage(pool: &SqlitePool, snippet_id: i64) -> Result<(), AppE
 ///
 /// # Examples
 ///
-/// ```rust
-/// let analytics = get_snippet_analytics(&pool, 42).await?;
+/// ```rust,no_run
+/// # use snips_lib::services::analytics::get_snippet_analytics;
+/// # use sqlx::SqlitePool;
+/// # async fn example(pool: &SqlitePool) -> Result<(), Box<dyn std::error::Error>> {
+/// let analytics = get_snippet_analytics(pool, 42).await?;
 /// println!("Usage count: {}", analytics.usage_count);
+/// # Ok(())
+/// # }
 /// ```
 pub async fn get_snippet_analytics(
     pool: &SqlitePool,
@@ -103,9 +113,14 @@ pub async fn get_snippet_analytics(
 ///
 /// # Examples
 ///
-/// ```rust
-/// let analytics = get_global_analytics(&pool, 10, 20).await?;
+/// ```rust,no_run
+/// # use snips_lib::services::analytics::get_global_analytics;
+/// # use sqlx::SqlitePool;
+/// # async fn example(pool: &SqlitePool) -> Result<(), Box<dyn std::error::Error>> {
+/// let analytics = get_global_analytics(pool, 10, 20).await?;
 /// println!("Total usages: {}", analytics.total_usages);
+/// # Ok(())
+/// # }
 /// ```
 pub async fn get_global_analytics(
     pool: &SqlitePool,
@@ -200,8 +215,13 @@ pub async fn get_global_analytics(
 ///
 /// # Examples
 ///
-/// ```rust
-/// clear_all_analytics(&pool).await?;
+/// ```rust,no_run
+/// # use snips_lib::services::analytics::clear_all_analytics;
+/// # use sqlx::SqlitePool;
+/// # async fn example(pool: &SqlitePool) -> Result<(), Box<dyn std::error::Error>> {
+/// clear_all_analytics(pool).await?;
+/// # Ok(())
+/// # }
 /// ```
 pub async fn clear_all_analytics(pool: &SqlitePool) -> Result<(), AppError> {
     sqlx::query("DELETE FROM analytics")
@@ -225,12 +245,18 @@ pub async fn clear_all_analytics(pool: &SqlitePool) -> Result<(), AppError> {
 ///
 /// # Examples
 ///
-/// ```rust
+/// ```rust,no_run
+/// # use snips_lib::services::analytics::clear_analytics_before;
+/// # use sqlx::SqlitePool;
+/// # use std::time::{SystemTime, UNIX_EPOCH};
+/// # async fn example(pool: &SqlitePool) -> Result<(), Box<dyn std::error::Error>> {
 /// let thirty_days_ago = SystemTime::now()
 ///     .duration_since(UNIX_EPOCH)
 ///     .unwrap()
 ///     .as_secs() as i64 - (30 * 24 * 60 * 60);
-/// let deleted = clear_analytics_before(&pool, thirty_days_ago).await?;
+/// let deleted = clear_analytics_before(pool, thirty_days_ago).await?;
+/// # Ok(())
+/// # }
 /// ```
 pub async fn clear_analytics_before(
     pool: &SqlitePool,

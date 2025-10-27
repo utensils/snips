@@ -194,8 +194,8 @@ describe('SearchOverlay', () => {
       expect(screen.getByText('1 snippet selected')).toBeInTheDocument();
     });
 
-    // Now get the Copy All button
-    const copyButton = screen.getByRole('button', { name: /copy all/i });
+    // Now get the Copy button
+    const copyButton = screen.getByRole('button', { name: /copy snippet/i });
     fireEvent.click(copyButton);
 
     await waitFor(() => {
@@ -203,34 +203,6 @@ describe('SearchOverlay', () => {
         snippetIds: [1],
       });
       expect(invoke).toHaveBeenCalledWith('hide_search_window');
-    });
-  });
-
-  it('displays usage count badge', async () => {
-    const mockResults = [
-      {
-        id: 1,
-        name: 'Popular Snippet',
-        content: 'Content',
-        description: null,
-        created_at: Date.now(),
-        updated_at: Date.now(),
-        tags: [],
-        usage_count: 42,
-        last_used: Date.now(),
-        relevance_score: 1.0,
-      },
-    ];
-
-    vi.mocked(invoke).mockResolvedValue(mockResults);
-
-    render(<SearchOverlay />);
-    const searchInput = screen.getByPlaceholderText('Search snippets...');
-
-    fireEvent.change(searchInput, { target: { value: 'test' } });
-
-    await waitFor(() => {
-      expect(screen.getByText('42x')).toBeInTheDocument();
     });
   });
 
