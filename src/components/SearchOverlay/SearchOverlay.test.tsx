@@ -1,6 +1,5 @@
 import { invoke } from '@tauri-apps/api/core';
-import { render, screen, waitFor } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { useSnippetStore } from '@/stores/snippetStore';
@@ -15,6 +14,21 @@ vi.mock('@tauri-apps/api/core', () => ({
 // Mock hooks
 vi.mock('@/hooks/useDebounce', () => ({
   useDebounce: (value: unknown) => value,
+}));
+
+vi.mock('@/hooks/useTags', () => ({
+  useTags: () => ({
+    tags: [],
+    loading: false,
+    error: null,
+    reload: vi.fn(),
+    getTagColor: (tagName: string) => {
+      // Simple hash-based color for testing - return hex colors
+      const hash = tagName.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+      const colors = ['#3b82f6', '#10b981', '#8b5cf6', '#ef4444', '#f59e0b', '#ec4899'];
+      return colors[hash % colors.length] || '#3b82f6';
+    },
+  }),
 }));
 
 describe('SearchOverlay', () => {
@@ -58,7 +72,7 @@ describe('SearchOverlay', () => {
     render(<SearchOverlay />);
     const searchInput = screen.getByPlaceholderText('Search snippets...');
 
-    await userEvent.type(searchInput, 'test');
+    fireEvent.change(searchInput, { target: { value: 'test' } });
 
     await waitFor(() => {
       expect(invoke).toHaveBeenCalledWith('search_snippets', {
@@ -89,7 +103,7 @@ describe('SearchOverlay', () => {
     render(<SearchOverlay />);
     const searchInput = screen.getByPlaceholderText('Search snippets...');
 
-    await userEvent.type(searchInput, 'test');
+    fireEvent.change(searchInput, { target: { value: 'test' } });
 
     await waitFor(() => {
       expect(screen.getByText('Test Snippet')).toBeInTheDocument();
@@ -103,7 +117,7 @@ describe('SearchOverlay', () => {
     render(<SearchOverlay />);
     const searchInput = screen.getByPlaceholderText('Search snippets...');
 
-    await userEvent.type(searchInput, 'nonexistent');
+    fireEvent.change(searchInput, { target: { value: 'nonexistent' } });
 
     await waitFor(() => {
       expect(screen.getByText('No snippets found')).toBeInTheDocument();
@@ -131,14 +145,14 @@ describe('SearchOverlay', () => {
     render(<SearchOverlay />);
     const searchInput = screen.getByPlaceholderText('Search snippets...');
 
-    await userEvent.type(searchInput, 'test');
+    fireEvent.change(searchInput, { target: { value: 'test' } });
 
     await waitFor(() => {
       expect(screen.getByText('Test Snippet')).toBeInTheDocument();
     });
 
     const checkbox = screen.getByLabelText(/Select snippet/);
-    await userEvent.click(checkbox);
+    fireEvent.click(checkbox);
 
     await waitFor(() => {
       expect(screen.getByText('1 snippet selected')).toBeInTheDocument();
@@ -166,14 +180,14 @@ describe('SearchOverlay', () => {
     render(<SearchOverlay />);
     const searchInput = screen.getByPlaceholderText('Search snippets...');
 
-    await userEvent.type(searchInput, 'test');
+    fireEvent.change(searchInput, { target: { value: 'test' } });
 
     await waitFor(() => {
       expect(screen.getByText('Test Snippet')).toBeInTheDocument();
     });
 
     const checkbox = screen.getByLabelText(/Select snippet/);
-    await userEvent.click(checkbox);
+    fireEvent.click(checkbox);
 
     // Wait for selection to be confirmed
     await waitFor(() => {
@@ -182,10 +196,12 @@ describe('SearchOverlay', () => {
 
     // Now get the Copy All button
     const copyButton = screen.getByRole('button', { name: /copy all/i });
-    await userEvent.click(copyButton);
+    fireEvent.click(copyButton);
 
     await waitFor(() => {
-      expect(invoke).toHaveBeenCalledWith('copy_to_clipboard', { text: 'Test content' });
+      expect(invoke).toHaveBeenCalledWith('copy_snippets_with_analytics', {
+        snippetIds: [1],
+      });
       expect(invoke).toHaveBeenCalledWith('hide_search_window');
     });
   });
@@ -211,7 +227,7 @@ describe('SearchOverlay', () => {
     render(<SearchOverlay />);
     const searchInput = screen.getByPlaceholderText('Search snippets...');
 
-    await userEvent.type(searchInput, 'test');
+    fireEvent.change(searchInput, { target: { value: 'test' } });
 
     await waitFor(() => {
       expect(screen.getByText('42x')).toBeInTheDocument();
@@ -239,7 +255,7 @@ describe('SearchOverlay', () => {
     render(<SearchOverlay />);
     const searchInput = screen.getByPlaceholderText('Search snippets...');
 
-    await userEvent.type(searchInput, 'test');
+    fireEvent.change(searchInput, { target: { value: 'test' } });
 
     await waitFor(() => {
       expect(screen.getByText('react')).toBeInTheDocument();

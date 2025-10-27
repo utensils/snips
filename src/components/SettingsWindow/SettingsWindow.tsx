@@ -71,7 +71,7 @@ export function SettingsWindow(): ReactElement {
         </nav>
 
         {/* Main Content Area */}
-        <main className="flex-1 overflow-hidden">
+        <main className="flex-1 overflow-y-auto">
           {activeTab === 'general' && (
             <Container maxWidth="2xl" className="py-8">
               <GeneralTab />

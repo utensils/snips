@@ -147,7 +147,7 @@ function SearchResultItem({
  * - Copy selected snippets to clipboard
  */
 export function SearchOverlay(): ReactElement {
-  const { getTagColor } = useTags();
+  const { getTagColor, reload: reloadTags } = useTags();
   const {
     searchQuery,
     setSearchQuery,
@@ -169,6 +169,11 @@ export function SearchOverlay(): ReactElement {
 
   // Update menubar badge count when selection changes
   useSelectionBadge();
+
+  // Ensure tags are loaded when component mounts
+  useEffect(() => {
+    reloadTags();
+  }, [reloadTags]);
 
   // Perform search when debounced query changes
   useEffect(() => {
@@ -224,15 +229,13 @@ export function SearchOverlay(): ReactElement {
     }
 
     try {
-      // Get selected snippets in order
-      const selectedResults = searchResults.filter((r) => selectedSnippets.has(r.id));
-
-      // Concatenate content with double newline separator (empty line between)
-      const content = selectedResults.map((r) => r.content).join('\n\n');
+      // Get selected snippet IDs in order (preserving selection across searches)
+      // Convert Set to Array to maintain order
+      const snippetIds = Array.from(selectedSnippets);
 
       // Copy to clipboard and record analytics using the combined command
-      const snippetIds = selectedResults.map((r) => r.id);
-      await invoke('copy_snippets_with_analytics', { snippetIds, text: content });
+      // The backend will fetch the snippet content and concatenate it
+      await invoke('copy_snippets_with_analytics', { snippetIds });
 
       // Show success feedback
       const count = selectedSnippets.size;
@@ -247,15 +250,21 @@ export function SearchOverlay(): ReactElement {
       console.error('Failed to copy to clipboard:', error);
       showToast('Failed to copy to clipboard', 'error');
     }
-  }, [selectedSnippets, searchResults, clearSelected, handleClose, showToast]);
+  }, [selectedSnippets, clearSelected, handleClose, showToast]);
 
   // Keyboard navigation
   const { focusedIndex } = useKeyboardNavigation({
     itemCount: searchResults.length,
     onSelect: (index) => {
-      const result = searchResults[index];
-      if (result) {
-        toggleSelected(result.id);
+      // If there are selected snippets, copy them
+      if (selectedSnippets.size > 0) {
+        handleCopy();
+      } else {
+        // Otherwise toggle the focused item
+        const result = searchResults[index];
+        if (result) {
+          toggleSelected(result.id);
+        }
       }
     },
     onToggle: (index) => {
@@ -292,7 +301,8 @@ export function SearchOverlay(): ReactElement {
     <div className="flex flex-col h-screen bg-white dark:bg-gray-900 rounded-xl border-[3px] border-gray-400 dark:border-gray-500 shadow-2xl overflow-hidden animate-fade-in-scale">
       {/* Header */}
       <div
-        className="flex-shrink-0 p-4 border-b border-gray-100 dark:border-gray-800 animate-slide-down"
+        className="flex-shrink-0 p-4 border-b border-gray-100 dark:border-gray-800 animate-slide-down [&>*]:pointer-events-auto"
+        style={{ pointerEvents: 'none' }}
         data-tauri-drag-region
       >
         <div className="flex items-center gap-3">
@@ -445,7 +455,7 @@ export function SearchOverlay(): ReactElement {
               </div>
               <div className="flex items-center gap-2">
                 <KeyboardShortcutHint keys={['Enter']} />
-                <span>Copy selected</span>
+                <span>Copy selected (or toggle if none selected)</span>
               </div>
               <div className="flex items-center gap-2">
                 <KeyboardShortcutHint keys={['Esc']} />

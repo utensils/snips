@@ -121,11 +121,11 @@ export async function getGlobalAnalytics(
 /**
  * Copies snippets to clipboard and records usage analytics
  * This combines the copy operation with automatic usage tracking
- * @param snippetIds - Array of snippet IDs being copied
- * @param text - The concatenated text to copy
+ * The backend fetches snippet content and concatenates it before copying
+ * @param snippetIds - Array of snippet IDs being copied (in desired order)
  */
-export async function copySnippetsWithAnalytics(snippetIds: number[], text: string): Promise<void> {
-  await invoke<void>('copy_snippets_with_analytics', { snippetIds, text });
+export async function copySnippetsWithAnalytics(snippetIds: number[]): Promise<void> {
+  await invoke<void>('copy_snippets_with_analytics', { snippetIds });
 }
 
 /**

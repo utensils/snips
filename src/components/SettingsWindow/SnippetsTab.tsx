@@ -1,5 +1,5 @@
 import { invoke } from '@tauri-apps/api/core';
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -14,7 +14,7 @@ import type { ExportData } from '@/types/storage';
 
 import { DeleteConfirmDialog } from './DeleteConfirmDialog';
 import { DuplicateDetection } from './DuplicateDetection';
-import { SnippetDetailPanel } from './SnippetDetailPanel';
+import { EditSnippetOverlay } from './EditSnippetOverlay';
 import { TagManagement } from './TagManagement';
 
 /**
@@ -56,7 +56,7 @@ export function SnippetsTab(): React.ReactElement {
   const [snippets, setSnippets] = useState<Snippet[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  const { getTagColor, reload: reloadTags } = useTags();
+  const { getTagColor } = useTags();
 
   // UI state
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -72,29 +72,27 @@ export function SnippetsTab(): React.ReactElement {
   const [showDuplicateDetection, setShowDuplicateDetection] = useState<boolean>(false);
   const [showTagManagement, setShowTagManagement] = useState<boolean>(false);
 
-  // Load snippets on mount
-  useEffect(() => {
-    loadSnippets();
-  }, []);
-
   /**
    * Loads all snippets from the database
    */
-  const loadSnippets = async (): Promise<void> => {
+  const loadSnippets = useCallback(async (): Promise<void> => {
     try {
       setIsLoading(true);
       setError(null);
       const data = await getAllSnippets();
       setSnippets(data);
-      // Also reload tags to ensure colors are up to date
-      await reloadTags();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load snippets');
       console.error('Failed to load snippets:', err);
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
+
+  // Load snippets on mount
+  useEffect(() => {
+    loadSnippets();
+  }, [loadSnippets]);
 
   /**
    * Filters and sorts snippets based on current state
@@ -344,177 +342,172 @@ export function SnippetsTab(): React.ReactElement {
   const [tagFilter] = parseTagFilter(searchQuery);
 
   return (
-    <div className="flex h-full gap-6">
-      {/* Left Panel - Snippet List */}
-      <div className="flex-1 flex flex-col min-w-0">
-        <Card className="flex-1 flex flex-col">
-          {/* Header */}
-          <div className="p-4 border-b border-gray-200 dark:border-gray-700">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Snippets</h2>
-              <div className="flex gap-2">
-                <Button onClick={() => setShowTagManagement(true)} variant="secondary">
-                  Manage Tags
-                </Button>
-                <Button onClick={() => setShowDuplicateDetection(true)} variant="secondary">
-                  Find Duplicates
-                </Button>
-                <Button onClick={handleCreateNew} variant="primary">
-                  Create New
-                </Button>
-              </div>
+    <>
+      <Card className="flex-1 flex flex-col h-full">
+        {/* Header */}
+        <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Snippets</h2>
+            <div className="flex gap-2">
+              <Button onClick={() => setShowTagManagement(true)} variant="secondary">
+                Manage Tags
+              </Button>
+              <Button onClick={() => setShowDuplicateDetection(true)} variant="secondary">
+                Find Duplicates
+              </Button>
+              <Button onClick={handleCreateNew} variant="primary">
+                Create New
+              </Button>
             </div>
-
-            {/* Search and filters */}
-            <div className="space-y-2">
-              <div className="flex gap-3 items-center">
-                <div className="flex-1">
-                  <Input
-                    type="text"
-                    placeholder="Search snippets... (use 'tag:' to filter by tag)"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    aria-label="Search snippets"
-                    fullWidth
-                  />
-                </div>
-                <select
-                  value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value as SortOption)}
-                  className="px-3 py-2 border border-gray-400 dark:border-gray-500 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 hover:border-gray-500 dark:hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent transition-colors"
-                  aria-label="Sort by"
-                >
-                  <option value="updated_desc">Recently Updated</option>
-                  <option value="updated_asc">Least Recently Updated</option>
-                  <option value="created_desc">Newest First</option>
-                  <option value="created_asc">Oldest First</option>
-                  <option value="name_asc">Name (A-Z)</option>
-                  <option value="name_desc">Name (Z-A)</option>
-                </select>
-              </div>
-
-              {/* Tag filter indicator */}
-              {tagFilter && (
-                <div className="flex items-center gap-2 px-3 py-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                  <Badge variant="primary" size="sm">
-                    <svg
-                      className="w-3 h-3 mr-1 inline"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
-                      />
-                    </svg>
-                    Filtering by: {tagFilter}
-                  </Badge>
-                  <span className="text-xs text-gray-500 dark:text-gray-400">
-                    Showing only snippets with this tag
-                  </span>
-                </div>
-              )}
-            </div>
-
-            {/* Bulk operations */}
-            {hasSelection && (
-              <div className="mt-3 flex items-center justify-between p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                <span className="text-sm text-gray-700 dark:text-gray-300">
-                  {selectedSnippetIds.size} selected
-                </span>
-                <div className="flex gap-2">
-                  <Button onClick={clearSelection} variant="secondary" size="sm">
-                    Clear Selection
-                  </Button>
-                  <Button onClick={handleExportSelected} variant="secondary" size="sm">
-                    Export
-                  </Button>
-                  <Button onClick={handleDeleteSelected} variant="danger" size="sm">
-                    Delete Selected
-                  </Button>
-                </div>
-              </div>
-            )}
           </div>
 
-          {/* Snippet List */}
-          <div className="flex-1 overflow-y-auto">
-            {isLoading ? (
-              <div className="flex items-center justify-center h-full">
-                <Spinner size="lg" />
+          {/* Search and filters */}
+          <div className="space-y-2">
+            <div className="flex gap-3 items-center">
+              <div className="flex-1">
+                <Input
+                  type="text"
+                  placeholder="Search snippets... (use 'tag:' to filter by tag)"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  aria-label="Search snippets"
+                  fullWidth
+                />
               </div>
-            ) : error ? (
-              <div className="flex items-center justify-center h-full">
-                <div className="text-center">
-                  <p className="text-red-600 dark:text-red-400 mb-4">{error}</p>
-                  <Button onClick={loadSnippets} variant="secondary">
-                    Retry
-                  </Button>
-                </div>
-              </div>
-            ) : filteredAndSortedSnippets.length === 0 ? (
-              <div className="flex items-center justify-center h-full">
-                <p className="text-gray-500 dark:text-gray-400">
-                  {searchQuery ? 'No snippets match your search' : 'No snippets yet'}
-                </p>
-              </div>
-            ) : (
-              <div className="divide-y divide-gray-200 dark:divide-gray-700">
-                {/* Select All */}
-                <div className="p-3 bg-gray-50 dark:bg-gray-800/50">
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <Checkbox
-                      checked={
-                        filteredAndSortedSnippets.length > 0 &&
-                        filteredAndSortedSnippets.every((s) => selectedSnippetIds.has(s.id))
-                      }
-                      onChange={(checked) => {
-                        if (checked) {
-                          selectAll();
-                        } else {
-                          clearSelection();
-                        }
-                      }}
-                      aria-label="Select all snippets"
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as SortOption)}
+                className="px-3 py-2 border border-gray-400 dark:border-gray-500 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 hover:border-gray-500 dark:hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent transition-colors"
+                aria-label="Sort by"
+              >
+                <option value="updated_desc">Recently Updated</option>
+                <option value="updated_asc">Least Recently Updated</option>
+                <option value="created_desc">Newest First</option>
+                <option value="created_asc">Oldest First</option>
+                <option value="name_asc">Name (A-Z)</option>
+                <option value="name_desc">Name (Z-A)</option>
+              </select>
+            </div>
+
+            {/* Tag filter indicator */}
+            {tagFilter && (
+              <div className="flex items-center gap-2 px-3 py-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                <Badge variant="primary" size="sm">
+                  <svg
+                    className="w-3 h-3 mr-1 inline"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
                     />
-                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                      Select All
-                    </span>
-                  </label>
-                </div>
-
-                {/* Snippet items */}
-                {filteredAndSortedSnippets.map((snippet) => (
-                  <SnippetListItem
-                    key={snippet.id}
-                    snippet={snippet}
-                    isSelected={selectedSnippetIds.has(snippet.id)}
-                    isActive={selectedSnippet?.id === snippet.id}
-                    onToggleSelect={() => toggleSnippetSelection(snippet.id)}
-                    onClick={() => handleSnippetClick(snippet)}
-                    onDelete={() => handleDeleteSingle(snippet)}
-                    getTagColor={getTagColor}
-                  />
-                ))}
+                  </svg>
+                  Filtering by: {tagFilter}
+                </Badge>
+                <span className="text-xs text-gray-500 dark:text-gray-400">
+                  Showing only snippets with this tag
+                </span>
               </div>
             )}
           </div>
-        </Card>
-      </div>
 
-      {/* Right Panel - Detail/Edit */}
-      {isDetailPanelOpen && (
-        <div className="w-[500px] flex-shrink-0">
-          <SnippetDetailPanel
-            snippet={selectedSnippet}
-            isCreating={isCreating}
-            onSave={handleSaveSuccess}
-            onCancel={handleCancel}
-          />
+          {/* Bulk operations */}
+          {hasSelection && (
+            <div className="mt-3 flex items-center justify-between p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+              <span className="text-sm text-gray-700 dark:text-gray-300">
+                {selectedSnippetIds.size} selected
+              </span>
+              <div className="flex gap-2">
+                <Button onClick={clearSelection} variant="secondary" size="sm">
+                  Clear Selection
+                </Button>
+                <Button onClick={handleExportSelected} variant="secondary" size="sm">
+                  Export
+                </Button>
+                <Button onClick={handleDeleteSelected} variant="danger" size="sm">
+                  Delete Selected
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
+
+        {/* Snippet List */}
+        <div className="flex-1 overflow-y-auto">
+          {isLoading ? (
+            <div className="flex items-center justify-center h-full">
+              <Spinner size="lg" />
+            </div>
+          ) : error ? (
+            <div className="flex items-center justify-center h-full">
+              <div className="text-center">
+                <p className="text-red-600 dark:text-red-400 mb-4">{error}</p>
+                <Button onClick={loadSnippets} variant="secondary">
+                  Retry
+                </Button>
+              </div>
+            </div>
+          ) : filteredAndSortedSnippets.length === 0 ? (
+            <div className="flex items-center justify-center h-full">
+              <p className="text-gray-500 dark:text-gray-400">
+                {searchQuery ? 'No snippets match your search' : 'No snippets yet'}
+              </p>
+            </div>
+          ) : (
+            <div className="divide-y divide-gray-200 dark:divide-gray-700">
+              {/* Select All */}
+              <div className="p-3 bg-gray-50 dark:bg-gray-800/50">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <Checkbox
+                    checked={
+                      filteredAndSortedSnippets.length > 0 &&
+                      filteredAndSortedSnippets.every((s) => selectedSnippetIds.has(s.id))
+                    }
+                    onChange={(checked) => {
+                      if (checked) {
+                        selectAll();
+                      } else {
+                        clearSelection();
+                      }
+                    }}
+                    aria-label="Select all snippets"
+                  />
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Select All
+                  </span>
+                </label>
+              </div>
+
+              {/* Snippet items */}
+              {filteredAndSortedSnippets.map((snippet) => (
+                <SnippetListItem
+                  key={snippet.id}
+                  snippet={snippet}
+                  isSelected={selectedSnippetIds.has(snippet.id)}
+                  isActive={selectedSnippet?.id === snippet.id}
+                  onToggleSelect={() => toggleSnippetSelection(snippet.id)}
+                  onClick={() => handleSnippetClick(snippet)}
+                  onDelete={() => handleDeleteSingle(snippet)}
+                  getTagColor={getTagColor}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      </Card>
+
+      {/* Edit Snippet Overlay */}
+      {isDetailPanelOpen && (
+        <EditSnippetOverlay
+          snippet={selectedSnippet}
+          isCreating={isCreating}
+          onSave={handleSaveSuccess}
+          onClose={handleCancel}
+        />
       )}
 
       {/* Delete Confirmation Dialog */}
@@ -543,7 +536,7 @@ export function SnippetsTab(): React.ReactElement {
           onClose={() => setShowTagManagement(false)}
         />
       )}
-    </div>
+    </>
   );
 }
 
@@ -574,6 +567,11 @@ function SnippetListItem({
     onToggleSelect();
   };
 
+  const handleEditClick = (e: React.MouseEvent): void => {
+    e.stopPropagation();
+    onClick();
+  };
+
   const handleDeleteClick = (e: React.MouseEvent): void => {
     e.stopPropagation();
     onDelete();
@@ -582,10 +580,9 @@ function SnippetListItem({
   return (
     <div
       className={`
-        p-4 cursor-pointer transition-colors
+        p-4 transition-colors
         ${isActive ? 'bg-blue-50 dark:bg-blue-900/20' : 'hover:bg-gray-50 dark:hover:bg-gray-800/50'}
       `}
-      onClick={onClick}
     >
       <div className="flex items-start gap-3">
         {/* Checkbox */}
@@ -623,21 +620,40 @@ function SnippetListItem({
           </div>
         </div>
 
-        {/* Delete button */}
-        <button
-          onClick={handleDeleteClick}
-          className="text-gray-400 hover:text-red-600 dark:hover:text-red-400 p-1"
-          aria-label="Delete snippet"
-        >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-            />
-          </svg>
-        </button>
+        {/* Action buttons */}
+        <div className="flex items-center gap-1">
+          {/* Edit button */}
+          <button
+            onClick={handleEditClick}
+            className="text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 p-1"
+            aria-label="Edit snippet"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
+              />
+            </svg>
+          </button>
+
+          {/* Delete button */}
+          <button
+            onClick={handleDeleteClick}
+            className="text-gray-400 hover:text-red-600 dark:hover:text-red-400 p-1"
+            aria-label="Delete snippet"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+              />
+            </svg>
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -645,10 +661,12 @@ function SnippetListItem({
 
 /**
  * Formats a timestamp as relative time (e.g., "2 hours ago")
+ * Note: timestamps from backend are in seconds, need to convert to milliseconds
  */
 function formatRelativeTime(timestamp: number): string {
   const now = Date.now();
-  const diff = now - timestamp;
+  const timestampMs = timestamp * 1000; // Convert seconds to milliseconds
+  const diff = now - timestampMs;
 
   const seconds = Math.floor(diff / 1000);
   const minutes = Math.floor(seconds / 60);

@@ -571,10 +571,12 @@ function RecentActivityRow({ name, usedAt }: RecentActivityRowProps): ReactEleme
 
 /**
  * Format timestamp as relative time (e.g., "2 hours ago")
+ * Note: timestamps from backend are in seconds, need to convert to milliseconds
  */
 function formatRelativeTime(timestamp: number): string {
   const now = Date.now();
-  const diff = now - timestamp;
+  const timestampMs = timestamp * 1000; // Convert seconds to milliseconds
+  const diff = now - timestampMs;
 
   const seconds = Math.floor(diff / 1000);
   const minutes = Math.floor(seconds / 60);
@@ -670,7 +672,7 @@ interface SnippetDrillDownProps {
 
 function SnippetDrillDown({ snippetDetails, onBack }: SnippetDrillDownProps): ReactElement {
   const firstUsedText = snippetDetails.first_used
-    ? new Date(snippetDetails.first_used).toLocaleDateString()
+    ? new Date(snippetDetails.first_used * 1000).toLocaleDateString()
     : 'Unknown';
   const lastUsedText = snippetDetails.last_used
     ? formatRelativeTime(snippetDetails.last_used)
@@ -755,7 +757,9 @@ function SnippetDrillDown({ snippetDetails, onBack }: SnippetDrillDownProps): Re
                   Days Since First Use
                 </span>
                 <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                  {Math.floor((Date.now() - snippetDetails.first_used) / (1000 * 60 * 60 * 24))}
+                  {Math.floor(
+                    (Date.now() - snippetDetails.first_used * 1000) / (1000 * 60 * 60 * 24)
+                  )}
                 </span>
               </div>
             )}
@@ -769,7 +773,9 @@ function SnippetDrillDown({ snippetDetails, onBack }: SnippetDrillDownProps): Re
                     snippetDetails.usage_count /
                     Math.max(
                       1,
-                      Math.floor((Date.now() - snippetDetails.first_used) / (1000 * 60 * 60 * 24))
+                      Math.floor(
+                        (Date.now() - snippetDetails.first_used * 1000) / (1000 * 60 * 60 * 24)
+                      )
                     )
                   ).toFixed(2)}
                 </span>

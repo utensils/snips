@@ -1,14 +1,16 @@
 /**
  * Hook for managing tags and their colors
+ * Uses shared Zustand store to prevent redundant fetches
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 
-import { getTags } from '@/lib/tagApi';
+import { useTagStore } from '@/stores/tagStore';
 import type { Tag } from '@/types/tag';
 
 /**
  * Hook to load and manage tags
+ * Loads tags from store on first mount, reuses cached data afterwards
  *
  * @returns Object containing tags array and helper functions
  */
@@ -18,33 +20,18 @@ export function useTags(): {
   getTagColor: (tagName: string) => string;
   reload: () => Promise<void>;
 } {
-  const [tags, setTags] = useState<Tag[]>([]);
-  const [loading, setLoading] = useState(true);
+  const tags = useTagStore((state) => state.tags);
+  const loading = useTagStore((state) => state.isLoading);
+  const loadTags = useTagStore((state) => state.loadTags);
+  const getTagColor = useTagStore((state) => state.getTagColor);
 
-  const loadTags = async (): Promise<void> => {
-    try {
-      setLoading(true);
-      const loadedTags = await getTags();
-      setTags(loadedTags);
-    } catch (err) {
-      console.error('Failed to load tags:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
+  // Load tags on first mount if not already loaded
   useEffect(() => {
-    loadTags();
+    if (tags.length === 0 && !loading) {
+      loadTags();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  /**
-   * Get the color for a tag name
-   * Returns default color if tag not found
-   */
-  const getTagColor = (tagName: string): string => {
-    const tag = tags.find((t) => t.name === tagName);
-    return tag?.color || '#EDEDED';
-  };
 
   return {
     tags,

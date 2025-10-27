@@ -45,6 +45,13 @@ pub fn get_migrations() -> Vec<Migration> {
             sql: include_str!("../migrations/005_add_tag_colors.sql"),
             kind: MigrationKind::Up,
         },
+        // Migration 6: Fix FTS5 tags column issue
+        Migration {
+            version: 6,
+            description: "fix_fts5_tags",
+            sql: include_str!("../migrations/006_fix_fts5_tags.sql"),
+            kind: MigrationKind::Up,
+        },
     ]
 }
 
@@ -92,7 +99,7 @@ mod tests {
     #[test]
     fn test_migrations_count() {
         let migrations = get_migrations();
-        assert_eq!(migrations.len(), 5);
+        assert_eq!(migrations.len(), 6);
     }
 
     #[test]
@@ -103,5 +110,6 @@ mod tests {
         assert_eq!(migrations[2].version, 3);
         assert_eq!(migrations[3].version, 4);
         assert_eq!(migrations[4].version, 5);
+        assert_eq!(migrations[5].version, 6);
     }
 }

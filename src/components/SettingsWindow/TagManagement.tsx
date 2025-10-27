@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -6,7 +6,8 @@ import { Card } from '@/components/ui/Card';
 import { ColorPicker } from '@/components/ui/ColorPicker';
 import { Input } from '@/components/ui/Input';
 import { updateSnippet } from '@/lib/api';
-import { getTags, updateTagColor } from '@/lib/tagApi';
+import { updateTagColor } from '@/lib/tagApi';
+import { useTagStore } from '@/stores/tagStore';
 import type { Snippet, Tag } from '@/types';
 
 /**
@@ -39,22 +40,10 @@ export function TagManagement({
   const [newTagName, setNewTagName] = useState<string>('');
   const [newTagColor, setNewTagColor] = useState<string>('#EDEDED');
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
-  const [allTags, setAllTags] = useState<Tag[]>([]);
 
-  /**
-   * Load all tags from database
-   */
-  useEffect(() => {
-    const loadTags = async (): Promise<void> => {
-      try {
-        const tags = await getTags();
-        setAllTags(tags);
-      } catch (err) {
-        console.error('Failed to load tags:', err);
-      }
-    };
-    loadTags();
-  }, []);
+  // Use tag store instead of local state
+  const allTags = useTagStore((state) => state.tags);
+  const loadTags = useTagStore((state) => state.loadTags);
 
   /**
    * Extracts all unique tags from snippets with usage count and color
@@ -173,8 +162,7 @@ export function TagManagement({
       }
 
       // Reload tags to get updated data
-      const tags = await getTags();
-      setAllTags(tags);
+      await loadTags();
 
       cancelEdit();
       onUpdate();
@@ -262,63 +250,61 @@ export function TagManagement({
               </p>
             </div>
           ) : (
-            <div className="space-y-2">
+            <div className="space-y-1">
               {filteredTags.map((tag) => (
-                <Card key={tag.name}>
-                  <div className="p-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <Badge color={tag.color} size="md">
-                          {tag.name}
-                        </Badge>
-                        <p className="text-sm text-gray-600 dark:text-gray-400">
-                          Used in {tag.count} snippet{tag.count !== 1 ? 's' : ''}
-                        </p>
-                      </div>
-                      <div className="flex gap-1">
-                        <button
-                          onClick={() => startEdit(tag)}
-                          className="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
-                          disabled={isProcessing}
-                          title="Edit tag"
-                          aria-label="Edit tag"
+                <Card key={tag.name} padding="sm">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <Badge color={tag.color} size="md">
+                        {tag.name}
+                      </Badge>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">
+                        Used in {tag.count} snippet{tag.count !== 1 ? 's' : ''}
+                      </p>
+                    </div>
+                    <div className="flex gap-1">
+                      <button
+                        onClick={() => startEdit(tag)}
+                        className="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
+                        disabled={isProcessing}
+                        title="Edit tag"
+                        aria-label="Edit tag"
+                      >
+                        <svg
+                          className="w-4 h-4"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
                         >
-                          <svg
-                            className="w-4 h-4"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
-                            />
-                          </svg>
-                        </button>
-                        <button
-                          onClick={() => deleteTag(tag.name)}
-                          className="p-2 text-gray-600 dark:text-gray-400 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-600 dark:hover:text-red-400 rounded"
-                          disabled={isProcessing}
-                          title="Delete tag"
-                          aria-label="Delete tag"
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
+                          />
+                        </svg>
+                      </button>
+                      <button
+                        onClick={() => deleteTag(tag.name)}
+                        className="p-2 text-gray-600 dark:text-gray-400 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-600 dark:hover:text-red-400 rounded"
+                        disabled={isProcessing}
+                        title="Delete tag"
+                        aria-label="Delete tag"
+                      >
+                        <svg
+                          className="w-4 h-4"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
                         >
-                          <svg
-                            className="w-4 h-4"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                            />
-                          </svg>
-                        </button>
-                      </div>
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                          />
+                        </svg>
+                      </button>
                     </div>
                   </div>
                 </Card>

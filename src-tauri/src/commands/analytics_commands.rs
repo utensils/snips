@@ -1,6 +1,7 @@
 use crate::models::analytics::{GlobalAnalytics, SnippetAnalytics};
 use crate::services::analytics;
 use crate::services::database::get_pool;
+use sqlx::Row;
 use tauri::AppHandle;
 
 /// Record a snippet usage event (M1)
@@ -94,13 +95,13 @@ pub async fn get_global_analytics(
 /// Copy snippets to clipboard and record usage analytics (M4)
 ///
 /// This command combines clipboard operations with usage tracking.
-/// It records analytics for each snippet being copied.
+/// It fetches the snippet content by IDs, concatenates them, copies to clipboard,
+/// and records analytics for each snippet being copied.
 ///
 /// # Arguments
 ///
 /// * `app` - Application handle for accessing database pool
-/// * `snippet_ids` - Vector of snippet IDs being copied
-/// * `text` - The concatenated text to copy to clipboard
+/// * `snippet_ids` - Vector of snippet IDs being copied (in desired order)
 ///
 /// # Returns
 ///
@@ -110,22 +111,44 @@ pub async fn get_global_analytics(
 ///
 /// ```typescript
 /// await invoke('copy_snippets_with_analytics', {
-///   snippetIds: [1, 2, 3],
-///   text: 'combined snippet content'
+///   snippetIds: [1, 2, 3]
 /// });
 /// ```
 #[tauri::command]
 pub async fn copy_snippets_with_analytics(
     app: AppHandle,
     snippet_ids: Vec<i64>,
-    text: String,
 ) -> Result<(), String> {
-    // First copy to clipboard
+    let pool = get_pool(&app).map_err(|e| e.to_string())?;
+
+    // Fetch snippet content for each ID in order
+    let mut contents = Vec::new();
+    for snippet_id in &snippet_ids {
+        let result = sqlx::query("SELECT content FROM snippets WHERE id = ?")
+            .bind(snippet_id)
+            .fetch_optional(&pool)
+            .await
+            .map_err(|e| format!("Failed to fetch snippet {}: {}", snippet_id, e))?;
+
+        match result {
+            Some(row) => {
+                let content: String = row.get(0);
+                contents.push(content);
+            }
+            None => {
+                eprintln!("Warning: Snippet {} not found", snippet_id);
+            }
+        }
+    }
+
+    // Concatenate content with double newline separator (empty line between)
+    let text = contents.join("\n\n");
+
+    // Copy to clipboard
     use crate::commands::clipboard_commands::copy_to_clipboard;
     copy_to_clipboard(app.clone(), text).await?;
 
-    // Then record analytics for each snippet
-    let pool = get_pool(&app).map_err(|e| e.to_string())?;
+    // Record analytics for each snippet
     for snippet_id in snippet_ids {
         // Continue recording even if one fails
         if let Err(e) = analytics::record_usage(&pool, snippet_id).await {
